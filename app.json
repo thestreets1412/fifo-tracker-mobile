@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": ".tmp-fifo-expo",
-    "slug": ".tmp-fifo-expo",
+    "name": "fifo-tracker-mobile",
+    "slug": "fifo-tracker-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

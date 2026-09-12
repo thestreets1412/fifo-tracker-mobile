@@ -1,5 +1,5 @@
 {
-  "name": "tmp-fifo-expo",
+  "name": "fifo-tracker-mobile",
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
@@ -27,6 +27,7 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
+    "roots": ["<rootDir>/src"],
     "testMatch": ["**/__tests__/**/*.test.ts"]
   },
   "private": true
