@@ -75,3 +75,79 @@ export function deleteSymbol(db: SqlDatabase, id: number): void {
 
   db.runSync('DELETE FROM symbols WHERE id = ?;', [id]);
 }
+
+// ========== LOT REPOSITORY ==========
+
+export interface LotRow {
+  id: number;
+  symbolId: number;
+  buyDate: string;
+  priceUsd: string;
+  qty: string;
+  fxRateUsdThb: string;
+  createdAt: string;
+  evidenceFile: string | null;
+}
+
+export type NewLotRow = Omit<LotRow, 'id'>;
+
+interface LotDbRow {
+  id: number;
+  symbol_id: number;
+  buy_date: string;
+  price_usd: string;
+  qty: string;
+  fx_rate_usd_thb: string;
+  created_at: string;
+  evidence_file: string | null;
+}
+
+function toLotRow(row: LotDbRow): LotRow {
+  return {
+    id: row.id,
+    symbolId: row.symbol_id,
+    buyDate: row.buy_date,
+    priceUsd: row.price_usd,
+    qty: row.qty,
+    fxRateUsdThb: row.fx_rate_usd_thb,
+    createdAt: row.created_at,
+    evidenceFile: row.evidence_file,
+  };
+}
+
+export function insertLot(db: SqlDatabase, lot: NewLotRow): LotRow {
+  const result = db.runSync(
+    `INSERT INTO lots (symbol_id, buy_date, price_usd, qty, fx_rate_usd_thb, created_at, evidence_file)
+     VALUES (?, ?, ?, ?, ?, ?, ?);`,
+    [lot.symbolId, lot.buyDate, lot.priceUsd, lot.qty, lot.fxRateUsdThb, lot.createdAt, lot.evidenceFile],
+  );
+  return { id: result.lastInsertRowId, ...lot };
+}
+
+export function listLots(db: SqlDatabase, symbolId?: number): LotRow[] {
+  const rows = symbolId === undefined
+    ? db.getAllSync<LotDbRow>('SELECT * FROM lots ORDER BY buy_date, created_at, id;')
+    : db.getAllSync<LotDbRow>(
+        'SELECT * FROM lots WHERE symbol_id = ? ORDER BY buy_date, created_at, id;',
+        [symbolId],
+      );
+  return rows.map(toLotRow);
+}
+
+export function getLot(db: SqlDatabase, id: number): LotRow | null {
+  const [row] = db.getAllSync<LotDbRow>('SELECT * FROM lots WHERE id = ?;', [id]);
+  return row ? toLotRow(row) : null;
+}
+
+/** Never touches created_at — it is the FIFO tiebreak stamp, fixed at insert. */
+export function updateLot(db: SqlDatabase, id: number, lot: NewLotRow): void {
+  db.runSync(
+    `UPDATE lots SET symbol_id = ?, buy_date = ?, price_usd = ?, qty = ?, fx_rate_usd_thb = ?, evidence_file = ?
+     WHERE id = ?;`,
+    [lot.symbolId, lot.buyDate, lot.priceUsd, lot.qty, lot.fxRateUsdThb, lot.evidenceFile, id],
+  );
+}
+
+export function deleteLot(db: SqlDatabase, id: number): void {
+  db.runSync('DELETE FROM lots WHERE id = ?;', [id]);
+}
