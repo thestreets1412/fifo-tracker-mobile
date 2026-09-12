@@ -1,0 +1,77 @@
+import type { SymbolRow } from '../core/types';
+import type { SqlDatabase } from './sqlDatabase';
+
+export type { SqlDatabase } from './sqlDatabase';
+
+export class DuplicateTickerError extends Error {
+  constructor(readonly ticker: string) {
+    super(`Symbol ${ticker} already exists`);
+    this.name = 'DuplicateTickerError';
+  }
+}
+
+export class SymbolInUseError extends Error {
+  constructor(readonly symbolId: number, readonly ticker: string) {
+    super(`Symbol ${ticker} (id ${symbolId}) is referenced by a lot or sale and cannot be deleted`);
+    this.name = 'SymbolInUseError';
+  }
+}
+
+function normalizeTicker(ticker: string): string {
+  return ticker.trim().toUpperCase();
+}
+
+export function createSymbol(db: SqlDatabase, ticker: string, name = ''): SymbolRow {
+  const normalized = normalizeTicker(ticker);
+  if (findSymbolByTicker(db, normalized)) {
+    throw new DuplicateTickerError(normalized);
+  }
+  const result = db.runSync('INSERT INTO symbols (ticker, name) VALUES (?, ?);', [normalized, name]);
+  return { id: result.lastInsertRowId, ticker: normalized, name };
+}
+
+export function findSymbolByTicker(db: SqlDatabase, ticker: string): SymbolRow | null {
+  const rows = db.getAllSync<SymbolRow>('SELECT * FROM symbols WHERE ticker = ?;', [normalizeTicker(ticker)]);
+  return rows[0] ?? null;
+}
+
+/**
+ * Resolves a ticker to its symbol, creating it if it does not exist yet.
+ * Needed wherever a ticker arrives as free text rather than a chosen
+ * symbol id — the buy-form combo field (plan 3) and backup import
+ * (plan 6) both need this rather than duplicating it.
+ */
+export function findOrCreateSymbol(db: SqlDatabase, ticker: string, name = ''): SymbolRow {
+  return findSymbolByTicker(db, ticker) ?? createSymbol(db, ticker, name);
+}
+
+export function listSymbols(db: SqlDatabase): SymbolRow[] {
+  return db.getAllSync<SymbolRow>('SELECT * FROM symbols ORDER BY ticker;');
+}
+
+export function renameSymbol(db: SqlDatabase, id: number, name: string): void {
+  db.runSync('UPDATE symbols SET name = ? WHERE id = ?;', [name, id]);
+}
+
+export function deleteSymbol(db: SqlDatabase, id: number): void {
+  const [symbol] = db.getAllSync<SymbolRow>('SELECT * FROM symbols WHERE id = ?;', [id]);
+  if (!symbol) return;
+
+  const lotResults = db.getAllSync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM lots WHERE symbol_id = ?;',
+    [id],
+  );
+  const lotCount = lotResults[0]?.count ?? 0;
+
+  const saleResults = db.getAllSync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM sales WHERE symbol_id = ?;',
+    [id],
+  );
+  const saleCount = saleResults[0]?.count ?? 0;
+
+  if (lotCount > 0 || saleCount > 0) {
+    throw new SymbolInUseError(id, symbol.ticker);
+  }
+
+  db.runSync('DELETE FROM symbols WHERE id = ?;', [id]);
+}
