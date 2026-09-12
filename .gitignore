@@ -39,3 +39,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Claude Code local state (session locks, worktrees created by EnterWorktree)
+.claude/scheduled_tasks.lock
+.claude/worktrees/
+
+# Superpowers per-plan scratch workspace (ledgers, briefs, review packages)
+.superpowers/
