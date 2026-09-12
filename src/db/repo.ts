@@ -151,3 +151,89 @@ export function updateLot(db: SqlDatabase, id: number, lot: NewLotRow): void {
 export function deleteLot(db: SqlDatabase, id: number): void {
   db.runSync('DELETE FROM lots WHERE id = ?;', [id]);
 }
+
+// ========== SALE REPOSITORY ==========
+
+export interface SaleRow {
+  id: number;
+  symbolId: number;
+  sellDate: string;
+  qtySold: string;
+  salePriceUsd: string;
+  feeUsd: string;
+  fxRateUsdThb: string;
+  createdAt: string;
+  evidenceFile: string | null;
+}
+
+export type NewSaleRow = Omit<SaleRow, 'id'>;
+
+interface SaleDbRow {
+  id: number;
+  symbol_id: number;
+  sell_date: string;
+  qty_sold: string;
+  sale_price_usd: string;
+  fee_usd: string;
+  fx_rate_usd_thb: string;
+  created_at: string;
+  evidence_file: string | null;
+}
+
+function toSaleRow(row: SaleDbRow): SaleRow {
+  return {
+    id: row.id,
+    symbolId: row.symbol_id,
+    sellDate: row.sell_date,
+    qtySold: row.qty_sold,
+    salePriceUsd: row.sale_price_usd,
+    feeUsd: row.fee_usd,
+    fxRateUsdThb: row.fx_rate_usd_thb,
+    createdAt: row.created_at,
+    evidenceFile: row.evidence_file,
+  };
+}
+
+export function insertSale(db: SqlDatabase, sale: NewSaleRow): SaleRow {
+  const result = db.runSync(
+    `INSERT INTO sales (symbol_id, sell_date, qty_sold, sale_price_usd, fee_usd, fx_rate_usd_thb, created_at, evidence_file)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+    [
+      sale.symbolId, sale.sellDate, sale.qtySold, sale.salePriceUsd,
+      sale.feeUsd, sale.fxRateUsdThb, sale.createdAt, sale.evidenceFile,
+    ],
+  );
+  return { id: result.lastInsertRowId, ...sale };
+}
+
+export function listSales(db: SqlDatabase, symbolId?: number): SaleRow[] {
+  const rows = symbolId === undefined
+    ? db.getAllSync<SaleDbRow>('SELECT * FROM sales ORDER BY sell_date, created_at, id;')
+    : db.getAllSync<SaleDbRow>(
+        'SELECT * FROM sales WHERE symbol_id = ? ORDER BY sell_date, created_at, id;',
+        [symbolId],
+      );
+  return rows.map(toSaleRow);
+}
+
+export function getSale(db: SqlDatabase, id: number): SaleRow | null {
+  const [row] = db.getAllSync<SaleDbRow>('SELECT * FROM sales WHERE id = ?;', [id]);
+  return row ? toSaleRow(row) : null;
+}
+
+/** Never touches created_at — it is the FIFO tiebreak stamp, fixed at insert. */
+export function updateSale(db: SqlDatabase, id: number, sale: NewSaleRow): void {
+  db.runSync(
+    `UPDATE sales SET symbol_id = ?, sell_date = ?, qty_sold = ?, sale_price_usd = ?,
+       fee_usd = ?, fx_rate_usd_thb = ?, evidence_file = ?
+     WHERE id = ?;`,
+    [
+      sale.symbolId, sale.sellDate, sale.qtySold, sale.salePriceUsd,
+      sale.feeUsd, sale.fxRateUsdThb, sale.evidenceFile, id,
+    ],
+  );
+}
+
+export function deleteSale(db: SqlDatabase, id: number): void {
+  db.runSync('DELETE FROM sales WHERE id = ?;', [id]);
+}
