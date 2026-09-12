@@ -205,3 +205,31 @@ describe('withTransaction nesting', () => {
     expect(listSales(db)).toHaveLength(0);
   });
 });
+
+describe('withTransaction depth recovery', () => {
+  it('resets the depth counter even when the outermost BEGIN itself throws, so a later call still gets real rollback protection', () => {
+    const { db, symbolId } = freshDbWithSymbol();
+
+    // Manually open a transaction on the raw connection first, so
+    // withTransaction's own BEGIN fails with "cannot start a transaction
+    // within a transaction" — simulating the connection being left
+    // mid-transaction by something earlier.
+    db.execSync('BEGIN;');
+    expect(() => withTransaction(db, () => undefined)).toThrow();
+
+    // If withTransaction's depth counter had latched at 1 instead of
+    // recovering to 0, every later call below would see depth > 0, treat
+    // itself as "nested", and silently skip BEGIN/COMMIT/ROLLBACK —
+    // meaning the InsufficientLotsError from addSale would leave the
+    // just-inserted lot committed with nothing rolled back. Instead this
+    // must behave exactly like a fresh, unrelated top-level call: full
+    // transactional protection, full rollback on failure.
+    addLot(db, lotInput(symbolId, { qty: new Decimal('1') }));
+    expect(() => addSale(db, saleInput(symbolId, { qtySold: new Decimal('1000') })))
+      .toThrow(InsufficientLotsError);
+
+    expect(listLots(db)).toHaveLength(1);
+    expect(listSales(db)).toHaveLength(0);
+    expect(listAllocations(db)).toHaveLength(0);
+  });
+});

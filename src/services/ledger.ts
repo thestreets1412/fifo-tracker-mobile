@@ -119,10 +119,18 @@ export function withTransaction<T>(db: SqlDatabase, fn: () => T): T {
   const isOutermost = depth === 0;
   transactionDepths.set(db, depth + 1);
 
-  if (isOutermost) {
-    db.execSync('BEGIN;');
-  }
   try {
+    // BEGIN lives inside the try (not before it) so that if it itself
+    // throws — e.g. "cannot start a transaction within a transaction"
+    // because the connection was left mid-transaction by something
+    // earlier — the catch below still runs and, critically, the finally
+    // still resets the depth counter. Leaving BEGIN outside the try would
+    // let a BEGIN failure skip the finally entirely, latching depth at a
+    // nonzero value forever and silently disabling transactional
+    // protection for every later call on this same database instance.
+    if (isOutermost) {
+      db.execSync('BEGIN;');
+    }
     const result = fn();
     if (isOutermost) {
       db.execSync('COMMIT;');
@@ -133,8 +141,9 @@ export function withTransaction<T>(db: SqlDatabase, fn: () => T): T {
       try {
         db.execSync('ROLLBACK;');
       } catch {
-        // SQLite may have already rolled back the transaction itself (e.g.
-        // after SQLITE_FULL/SQLITE_IOERR/SQLITE_NOMEM), in which case this
+        // Either BEGIN above never succeeded (nothing to roll back) or
+        // SQLite already rolled back the transaction itself (e.g. after
+        // SQLITE_FULL/SQLITE_IOERR/SQLITE_NOMEM), in which case this
         // ROLLBACK has nothing to do and would itself throw ("cannot
         // rollback - no transaction is active"). Database state is correct
         // either way; what must survive is the original error below.
