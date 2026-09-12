@@ -5,13 +5,16 @@
   "dependencies": {
     "decimal.js": "^10.6.0",
     "expo": "~57.0.22",
+    "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
     "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
+    "better-sqlite3": "^13.0.3",
     "jest": "^30.5.1",
     "ts-jest": "^29.4.12",
     "typescript": "~6.0.3"
@@ -27,8 +30,12 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "roots": ["<rootDir>/src"],
-    "testMatch": ["**/__tests__/**/*.test.ts"]
+    "roots": [
+      "<rootDir>/src"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts"
+    ]
   },
   "private": true
 }
