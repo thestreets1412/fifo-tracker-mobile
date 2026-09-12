@@ -12,6 +12,7 @@ import {
   deleteSale,
   rebuildLedger,
   withTransaction,
+  InvalidEvidenceFileError,
 } from '../ledger';
 import type { SqlDatabase } from '../../db/sqlDatabase';
 import type { NewLotInput, NewSaleInput } from '../ledger';
@@ -203,6 +204,39 @@ describe('withTransaction nesting', () => {
     // the nested addLot's insert was rolled back along with everything else.
     expect(listLots(db)).toHaveLength(1);
     expect(listSales(db)).toHaveLength(0);
+  });
+});
+
+describe('evidence file validation', () => {
+  it('rejects an addLot evidenceFile containing a path separator, and inserts nothing', () => {
+    const { db, symbolId } = freshDbWithSymbol();
+
+    expect(() => addLot(db, lotInput(symbolId, { evidenceFile: 'photos/receipt.jpg' })))
+      .toThrow(InvalidEvidenceFileError);
+
+    expect(listLots(db)).toHaveLength(0);
+  });
+
+  it('rejects an addSale evidenceFile that looks like an absolute path or URI, and inserts nothing', () => {
+    const { db, symbolId } = freshDbWithSymbol();
+    addLot(db, lotInput(symbolId));
+
+    expect(() => addSale(db, saleInput(symbolId, { evidenceFile: 'C:\\Users\\me\\receipt.jpg' })))
+      .toThrow(InvalidEvidenceFileError);
+    expect(() => addSale(db, saleInput(symbolId, { evidenceFile: 'file:///storage/receipt.jpg' })))
+      .toThrow(InvalidEvidenceFileError);
+
+    expect(listSales(db)).toHaveLength(0);
+  });
+
+  it('accepts a bare filename and null for both addLot and addSale', () => {
+    const { db, symbolId } = freshDbWithSymbol();
+
+    const lot = addLot(db, lotInput(symbolId, { evidenceFile: 'receipt.jpg' }));
+    expect(lot.evidenceFile).toBe('receipt.jpg');
+
+    const sale = addSale(db, saleInput(symbolId, { evidenceFile: null }));
+    expect(sale.evidenceFile).toBeNull();
   });
 });
 

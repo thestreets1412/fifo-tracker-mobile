@@ -7,6 +7,19 @@ export const CURRENT_SCHEMA_VERSION = 1;
  * in order from the database's current PRAGMA user_version up to
  * CURRENT_SCHEMA_VERSION — SQLite reserves user_version for exactly this,
  * so no separate bookkeeping table is needed.
+ *
+ * Constraint for future migrations: `runMigrations` below wraps every
+ * migration in a single BEGIN/COMMIT. That's fine for straightforward
+ * CREATE/ALTER-add-column migrations like v1, but SQLite's standard recipe
+ * for restructuring a table with foreign keys (e.g. changing a column's
+ * type, dropping a column, changing a NOT NULL/DEFAULT) requires running
+ * `PRAGMA foreign_keys=OFF` *outside* any transaction — the pragma is a
+ * silent no-op if issued inside one — before the
+ * create-new-table/copy-rows/drop-old/rename sequence, then turning it back
+ * on afterward. A future migration that needs that recipe cannot run through
+ * this single-BEGIN wrapper as written; it will need `runMigrations` (or a
+ * dedicated path for that migration) to issue `PRAGMA foreign_keys=OFF`
+ * before opening the transaction.
  */
 const MIGRATIONS: Record<number, string> = {
   1: `

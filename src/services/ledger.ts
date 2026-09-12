@@ -24,7 +24,27 @@ export interface NewSaleInput {
   evidenceFile: string | null;
 }
 
-function toDomainLot(row: repo.LotRow): Lot {
+export class InvalidEvidenceFileError extends Error {
+  constructor(readonly value: string) {
+    super(`evidenceFile must be a bare filename, not a path: ${JSON.stringify(value)}`);
+    this.name = 'InvalidEvidenceFileError';
+  }
+}
+
+/**
+ * Enforces the project rule that evidence images are stored by filename only
+ * (CLAUDE.md: "Evidence images are stored by filename, never absolute
+ * path."). Rejects anything that looks like a path or URI rather than a bare
+ * filename, so a future image-picker integration can't accidentally persist
+ * a `file:///...` URI that would orphan the image on reinstall.
+ */
+function validateEvidenceFile(value: string | null): void {
+  if (value !== null && /[/\\:]/.test(value)) {
+    throw new InvalidEvidenceFileError(value);
+  }
+}
+
+export function toDomainLot(row: repo.LotRow): Lot {
   return {
     id: row.id,
     symbolId: row.symbolId,
@@ -37,7 +57,7 @@ function toDomainLot(row: repo.LotRow): Lot {
   };
 }
 
-function toDomainSale(row: repo.SaleRow): Sale {
+export function toDomainSale(row: repo.SaleRow): Sale {
   return {
     id: row.id,
     symbolId: row.symbolId,
@@ -79,23 +99,28 @@ function toSaleRow(input: NewSaleInput, createdAt: string): repo.NewSaleRow {
 /**
  * Recomputes every allocation from scratch and replaces the
  * sale_allocations table with the result (spec §2.4: allocations are
- * derived, never authoritative). Runs inside the caller's transaction —
- * it never opens its own, so a caller can compose it with other writes
- * and roll everything back together.
+ * derived, never authoritative). Wraps itself in `withTransaction`, which
+ * nests cleanly: when called from inside `addLot`/`editLot`/etc. (which
+ * already hold the outer transaction) this is a no-op wrapper, and when
+ * called bare — as tests do — it still gets real atomicity, so an
+ * interruption between `replaceAllAllocations`'s DELETE and its N inserts
+ * can never leave the allocation table partially populated.
  */
 export function rebuildLedger(db: SqlDatabase): void {
-  const lots = repo.listLots(db).map(toDomainLot);
-  const sales = repo.listSales(db).map(toDomainSale);
-  const allocations = rebuildAllocations(lots, sales);
-  repo.replaceAllAllocations(
-    db,
-    allocations.map((allocation) => ({
-      saleId: allocation.saleId,
-      lotId: allocation.lotId,
-      qtyAllocated: toStored(allocation.qtyAllocated, DP.qty),
-      costBasisThb: toStored(allocation.costBasisThb, DP.money),
-    })),
-  );
+  withTransaction(db, () => {
+    const lots = repo.listLots(db).map(toDomainLot);
+    const sales = repo.listSales(db).map(toDomainSale);
+    const allocations = rebuildAllocations(lots, sales);
+    repo.replaceAllAllocations(
+      db,
+      allocations.map((allocation) => ({
+        saleId: allocation.saleId,
+        lotId: allocation.lotId,
+        qtyAllocated: toStored(allocation.qtyAllocated, DP.qty),
+        costBasisThb: toStored(allocation.costBasisThb, DP.money),
+      })),
+    );
+  });
 }
 
 // Tracks transaction nesting depth per database. Keyed by db instance
@@ -156,6 +181,7 @@ export function withTransaction<T>(db: SqlDatabase, fn: () => T): T {
 }
 
 export function addLot(db: SqlDatabase, input: NewLotInput): repo.LotRow {
+  validateEvidenceFile(input.evidenceFile);
   return withTransaction(db, () => {
     const inserted = repo.insertLot(db, toLotRow(input, new Date().toISOString()));
     rebuildLedger(db);
@@ -164,6 +190,7 @@ export function addLot(db: SqlDatabase, input: NewLotInput): repo.LotRow {
 }
 
 export function editLot(db: SqlDatabase, id: number, input: NewLotInput): void {
+  validateEvidenceFile(input.evidenceFile);
   withTransaction(db, () => {
     const existing = repo.getLot(db, id);
     if (!existing) throw new Error(`Lot ${id} does not exist`);
@@ -180,6 +207,7 @@ export function deleteLot(db: SqlDatabase, id: number): void {
 }
 
 export function addSale(db: SqlDatabase, input: NewSaleInput): repo.SaleRow {
+  validateEvidenceFile(input.evidenceFile);
   return withTransaction(db, () => {
     const inserted = repo.insertSale(db, toSaleRow(input, new Date().toISOString()));
     rebuildLedger(db);
@@ -188,6 +216,7 @@ export function addSale(db: SqlDatabase, input: NewSaleInput): repo.SaleRow {
 }
 
 export function editSale(db: SqlDatabase, id: number, input: NewSaleInput): void {
+  validateEvidenceFile(input.evidenceFile);
   withTransaction(db, () => {
     const existing = repo.getSale(db, id);
     if (!existing) throw new Error(`Sale ${id} does not exist`);

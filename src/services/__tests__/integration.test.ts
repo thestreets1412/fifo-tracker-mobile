@@ -4,7 +4,7 @@ import { runMigrations } from '../../db/schema';
 import { createSymbol, listLots, listSales, listAllocations } from '../../db/repo';
 import { fromStored } from '../../core/money';
 import { lotQtyRemaining, saleCapitalGainThb } from '../../core/derive';
-import { addLot, addSale, deleteSale } from '../ledger';
+import { addLot, addSale, deleteSale, toDomainLot, toDomainSale } from '../ledger';
 import type { Allocation } from '../../core/types';
 
 /**
@@ -48,32 +48,13 @@ describe('core + db + services integration', () => {
     }));
 
     const lotRow = listLots(db, symbol.id)[0]!;
-    const domainLot = {
-      id: lotRow.id,
-      symbolId: lotRow.symbolId,
-      buyDate: lotRow.buyDate,
-      priceUsd: fromStored(lotRow.priceUsd),
-      qty: fromStored(lotRow.qty),
-      fxRateUsdThb: fromStored(lotRow.fxRateUsdThb),
-      createdAt: lotRow.createdAt,
-      evidenceFile: lotRow.evidenceFile,
-    };
+    const domainLot = toDomainLot(lotRow);
 
     // 10 - 4 = 6 remaining on the lot, exactly.
     expect(lotQtyRemaining(domainLot, allocations).equals(new Decimal('6'))).toBe(true);
 
     const saleRow = listSales(db, symbol.id)[0]!;
-    const domainSale = {
-      id: saleRow.id,
-      symbolId: saleRow.symbolId,
-      sellDate: saleRow.sellDate,
-      qtySold: fromStored(saleRow.qtySold),
-      salePriceUsd: fromStored(saleRow.salePriceUsd),
-      feeUsd: fromStored(saleRow.feeUsd),
-      fxRateUsdThb: fromStored(saleRow.fxRateUsdThb),
-      createdAt: saleRow.createdAt,
-      evidenceFile: saleRow.evidenceFile,
-    };
+    const domainSale = toDomainSale(saleRow);
 
     // proceeds = 4*150*36 = 21600 (sale's own FX rate)
     // cost basis per allocation uses the LOT's FX rate, never the sale's:
@@ -101,14 +82,6 @@ describe('core + db + services integration', () => {
 
     expect(listAllocations(db)).toHaveLength(0);
     const lotRow = listLots(db, symbol.id)[0]!;
-    expect(lotQtyRemaining(
-      {
-        id: lotRow.id, symbolId: lotRow.symbolId, buyDate: lotRow.buyDate,
-        priceUsd: fromStored(lotRow.priceUsd), qty: fromStored(lotRow.qty),
-        fxRateUsdThb: fromStored(lotRow.fxRateUsdThb), createdAt: lotRow.createdAt,
-        evidenceFile: lotRow.evidenceFile,
-      },
-      [],
-    ).equals(new Decimal('10'))).toBe(true);
+    expect(lotQtyRemaining(toDomainLot(lotRow), []).equals(new Decimal('10'))).toBe(true);
   });
 });
