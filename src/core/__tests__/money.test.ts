@@ -1,5 +1,5 @@
 import Decimal from 'decimal.js';
-import { DP, toStored, fromStored } from '../money';
+import { DP, toStored, fromStored, parseInput, InvalidNumberError } from '../money';
 
 describe('DP', () => {
   it('matches the decimal places of the Django model fields', () => {
@@ -38,5 +38,49 @@ describe('fromStored', () => {
 
   it('reads a stored string back as an exact Decimal', () => {
     expect(fromStored('10.00000000').equals(new Decimal(10))).toBe(true);
+  });
+});
+
+describe('parseInput', () => {
+  it('accepts a plain decimal string', () => {
+    expect(parseInput('142.35', DP.price).equals(new Decimal('142.35'))).toBe(true);
+  });
+
+  it('accepts an integer string', () => {
+    expect(parseInput('10', DP.qty).equals(new Decimal(10))).toBe(true);
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(parseInput('  10.5  ', DP.qty).equals(new Decimal('10.5'))).toBe(true);
+  });
+
+  it('rejects thousands separators, which some keyboards offer', () => {
+    expect(() => parseInput('1,234.5', DP.qty)).toThrow(InvalidNumberError);
+  });
+
+  it('rejects an empty or whitespace-only string', () => {
+    expect(() => parseInput('', DP.qty)).toThrow(InvalidNumberError);
+    expect(() => parseInput('   ', DP.qty)).toThrow(InvalidNumberError);
+  });
+
+  it('rejects text', () => {
+    expect(() => parseInput('abc', DP.qty)).toThrow(InvalidNumberError);
+  });
+
+  it('rejects exponential input, which is never intentional from a user', () => {
+    expect(() => parseInput('1e8', DP.qty)).toThrow(InvalidNumberError);
+  });
+
+  it('rejects NaN and Infinity spellings', () => {
+    expect(() => parseInput('NaN', DP.qty)).toThrow(InvalidNumberError);
+    expect(() => parseInput('Infinity', DP.qty)).toThrow(InvalidNumberError);
+  });
+
+  it('rejects more decimal places than the field allows, rather than rounding silently', () => {
+    expect(() => parseInput('1.123456789', DP.qty)).toThrow(InvalidNumberError);
+  });
+
+  it('accepts exactly the allowed number of decimal places', () => {
+    expect(parseInput('1.12345678', DP.qty).equals(new Decimal('1.12345678'))).toBe(true);
   });
 });
