@@ -1,6 +1,6 @@
 import type Decimal from 'decimal.js';
 
-export interface Symbol {
+export interface SymbolRow {
   id: number;
   ticker: string;
   name: string;

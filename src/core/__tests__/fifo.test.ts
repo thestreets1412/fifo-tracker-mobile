@@ -176,6 +176,51 @@ describe('rebuildAllocations — the buy-date rule', () => {
   });
 });
 
+describe('rebuildAllocations — non-positive quantities', () => {
+  it('throws when a sale has qtySold of zero', () => {
+    const lot = makeLot({ id: 1, qty: new Decimal('10') });
+    const sale = makeSale({ id: 2, qtySold: new Decimal('0') });
+
+    expect(() => rebuildAllocations([lot], [sale])).toThrow(
+      'Sale 2 has non-positive quantity 0',
+    );
+  });
+
+  it('throws when a sale has a negative qtySold', () => {
+    const lot = makeLot({ id: 1, qty: new Decimal('10') });
+    const sale = makeSale({ id: 2, qtySold: new Decimal('-4') });
+
+    expect(() => rebuildAllocations([lot], [sale])).toThrow(
+      'Sale 2 has non-positive quantity -4',
+    );
+  });
+
+  it('throws when a lot has qty of zero', () => {
+    const lot = makeLot({ id: 1, qty: new Decimal('0') });
+    const sale = makeSale({ id: 2, qtySold: new Decimal('1') });
+
+    expect(() => rebuildAllocations([lot], [sale])).toThrow(
+      'Lot 1 has non-positive quantity 0',
+    );
+  });
+
+  it('throws when a lot has a negative qty', () => {
+    const lot = makeLot({ id: 1, qty: new Decimal('-5') });
+    const sale = makeSale({ id: 2, qtySold: new Decimal('1') });
+
+    expect(() => rebuildAllocations([lot], [sale])).toThrow(
+      'Lot 1 has non-positive quantity -5',
+    );
+  });
+
+  it('does not throw InsufficientLotsError for a non-positive-quantity input', () => {
+    const lot = makeLot({ id: 1, qty: new Decimal('-5') });
+    const sale = makeSale({ id: 2, qtySold: new Decimal('1') });
+
+    expect(() => rebuildAllocations([lot], [sale])).not.toThrow(InsufficientLotsError);
+  });
+});
+
 describe('InsufficientLotsError', () => {
   it('reports what was requested and what was actually held on that date', () => {
     const lot = makeLot({ id: 1, symbolId: 7, buyDate: '2026-01-01', qty: new Decimal('4') });

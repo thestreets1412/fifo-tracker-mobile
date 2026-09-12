@@ -39,6 +39,22 @@ export function rebuildAllocations(
   lots: readonly Lot[],
   sales: readonly Sale[],
 ): Allocation[] {
+  // A non-positive quantity must never reach the allocation loop: the
+  // outstanding-qty check below treats zero as "already satisfied", so a
+  // bad lot or sale would otherwise be silently ignored instead of
+  // rejected. This is a data-integrity violation the caller should never
+  // let through, not a normal failure mode like InsufficientLotsError.
+  for (const lot of lots) {
+    if (lot.qty.lessThanOrEqualTo(0)) {
+      throw new Error(`Lot ${lot.id} has non-positive quantity ${lot.qty.toString()}`);
+    }
+  }
+  for (const sale of sales) {
+    if (sale.qtySold.lessThanOrEqualTo(0)) {
+      throw new Error(`Sale ${sale.id} has non-positive quantity ${sale.qtySold.toString()}`);
+    }
+  }
+
   const orderedLots = [...lots].sort(byLotOrder);
   const orderedSales = [...sales].sort(bySaleOrder);
 
