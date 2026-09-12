@@ -237,3 +237,60 @@ export function updateSale(db: SqlDatabase, id: number, sale: NewSaleRow): void 
 export function deleteSale(db: SqlDatabase, id: number): void {
   db.runSync('DELETE FROM sales WHERE id = ?;', [id]);
 }
+
+// ========== ALLOCATION REPOSITORY ==========
+
+export interface AllocationRow {
+  saleId: number;
+  lotId: number;
+  qtyAllocated: string;
+  costBasisThb: string;
+}
+
+interface AllocationDbRow {
+  sale_id: number;
+  lot_id: number;
+  qty_allocated: string;
+  cost_basis_thb: string;
+}
+
+function toAllocationRow(row: AllocationDbRow): AllocationRow {
+  return {
+    saleId: row.sale_id,
+    lotId: row.lot_id,
+    qtyAllocated: row.qty_allocated,
+    costBasisThb: row.cost_basis_thb,
+  };
+}
+
+/**
+ * Discards every existing allocation and inserts the given set. Allocations
+ * are derived data (spec §2.4) — there is no update-in-place, only
+ * wholesale replacement after every rebuild.
+ */
+export function replaceAllAllocations(db: SqlDatabase, allocations: readonly AllocationRow[]): void {
+  db.runSync('DELETE FROM sale_allocations;');
+  for (const allocation of allocations) {
+    db.runSync(
+      'INSERT INTO sale_allocations (sale_id, lot_id, qty_allocated, cost_basis_thb) VALUES (?, ?, ?, ?);',
+      [allocation.saleId, allocation.lotId, allocation.qtyAllocated, allocation.costBasisThb],
+    );
+  }
+}
+
+export function listAllocations(
+  db: SqlDatabase,
+  filter?: { saleId?: number; lotId?: number },
+): AllocationRow[] {
+  if (filter?.saleId !== undefined) {
+    return db
+      .getAllSync<AllocationDbRow>('SELECT * FROM sale_allocations WHERE sale_id = ?;', [filter.saleId])
+      .map(toAllocationRow);
+  }
+  if (filter?.lotId !== undefined) {
+    return db
+      .getAllSync<AllocationDbRow>('SELECT * FROM sale_allocations WHERE lot_id = ?;', [filter.lotId])
+      .map(toAllocationRow);
+  }
+  return db.getAllSync<AllocationDbRow>('SELECT * FROM sale_allocations;').map(toAllocationRow);
+}
