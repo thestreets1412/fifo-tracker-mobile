@@ -98,15 +98,51 @@ export function rebuildLedger(db: SqlDatabase): void {
   );
 }
 
-function withTransaction<T>(db: SqlDatabase, fn: () => T): T {
-  db.execSync('BEGIN;');
+// Tracks transaction nesting depth per database. Keyed by db instance
+// (rather than a single module-level counter) so two databases used in the
+// same process — as happens across independent tests — can never be
+// mistaken for one nested call chain.
+const transactionDepths = new WeakMap<SqlDatabase, number>();
+
+/**
+ * Runs `fn` inside a transaction. Only the outermost call issues a real
+ * `BEGIN`/`COMMIT`/`ROLLBACK`; a call made while already inside one (e.g. a
+ * future bulk-import service wrapping many addLot/addSale calls in one
+ * atomic import) simply runs `fn` in place and lets any error propagate to
+ * the outermost catch, which performs the actual rollback — so a failure
+ * anywhere in a nested sequence undoes the whole sequence, not just the
+ * innermost call. This intentionally does not use SAVEPOINTs: a partial
+ * inner success is never meant to survive an outer failure here.
+ */
+export function withTransaction<T>(db: SqlDatabase, fn: () => T): T {
+  const depth = transactionDepths.get(db) ?? 0;
+  const isOutermost = depth === 0;
+  transactionDepths.set(db, depth + 1);
+
+  if (isOutermost) {
+    db.execSync('BEGIN;');
+  }
   try {
     const result = fn();
-    db.execSync('COMMIT;');
+    if (isOutermost) {
+      db.execSync('COMMIT;');
+    }
     return result;
   } catch (error) {
-    db.execSync('ROLLBACK;');
+    if (isOutermost) {
+      try {
+        db.execSync('ROLLBACK;');
+      } catch {
+        // SQLite may have already rolled back the transaction itself (e.g.
+        // after SQLITE_FULL/SQLITE_IOERR/SQLITE_NOMEM), in which case this
+        // ROLLBACK has nothing to do and would itself throw ("cannot
+        // rollback - no transaction is active"). Database state is correct
+        // either way; what must survive is the original error below.
+      }
+    }
     throw error;
+  } finally {
+    transactionDepths.set(db, depth);
   }
 }
 

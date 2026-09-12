@@ -1,9 +1,18 @@
 import Decimal from 'decimal.js';
 import { openTestDatabase } from '../../db/__tests__/testDatabase';
 import { runMigrations } from '../../db/schema';
-import { createSymbol, listAllocations, listSales, getLot, getSale } from '../../db/repo';
+import { createSymbol, listAllocations, listSales, listLots, getLot, getSale } from '../../db/repo';
 import { InsufficientLotsError } from '../../core/fifo';
-import { addLot, editLot, deleteLot, addSale, editSale, deleteSale, rebuildLedger } from '../ledger';
+import {
+  addLot,
+  editLot,
+  deleteLot,
+  addSale,
+  editSale,
+  deleteSale,
+  rebuildLedger,
+  withTransaction,
+} from '../ledger';
 import type { SqlDatabase } from '../../db/sqlDatabase';
 import type { NewLotInput, NewSaleInput } from '../ledger';
 
@@ -162,5 +171,37 @@ describe('rebuildLedger', () => {
     rebuildLedger(db);
 
     expect(listAllocations(db, { saleId: sale.id })).toHaveLength(1);
+  });
+});
+
+describe('withTransaction nesting', () => {
+  it('lets multiple mutation calls share one outer atomic transaction', () => {
+    const { db, symbolId } = freshDbWithSymbol();
+
+    withTransaction(db, () => {
+      addLot(db, lotInput(symbolId, { qty: new Decimal('5') }));
+      addLot(db, lotInput(symbolId, { qty: new Decimal('5') }));
+    });
+
+    expect(listLots(db)).toHaveLength(2);
+  });
+
+  it('rolls back every nested call when one of them fails', () => {
+    const { db, symbolId } = freshDbWithSymbol();
+    addLot(db, lotInput(symbolId, { qty: new Decimal('10') }));
+
+    expect(() => {
+      withTransaction(db, () => {
+        // This nested addLot succeeds on its own, but must not survive the
+        // outer rollback triggered by the addSale below.
+        addLot(db, lotInput(symbolId, { qty: new Decimal('5') }));
+        addSale(db, saleInput(symbolId, { qtySold: new Decimal('1000') }));
+      });
+    }).toThrow(InsufficientLotsError);
+
+    // Only the original lot from before the outer transaction remains —
+    // the nested addLot's insert was rolled back along with everything else.
+    expect(listLots(db)).toHaveLength(1);
+    expect(listSales(db)).toHaveLength(0);
   });
 });
