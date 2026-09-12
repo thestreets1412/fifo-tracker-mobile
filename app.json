@@ -7,7 +7,9 @@
     "scheme": "fifotracker",
     "userInterfaceStyle": "dark",
     "icon": "./assets/icon.png",
-    "ios": { "supportsTablet": true },
+    "ios": {
+      "supportsTablet": true
+    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0a0e1a",
@@ -17,7 +19,13 @@
       },
       "predictiveBackGestureEnabled": false
     },
-    "web": { "favicon": "./assets/favicon.png" },
-    "plugins": ["expo-sqlite", "expo-router"]
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-router",
+      "@react-native-community/datetimepicker"
+    ]
   }
 }
