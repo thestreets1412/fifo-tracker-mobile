@@ -1,0 +1,272 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": []
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/core/**",
+              "components/feedback/**",
+              "components/forms/**",
+              "components/navigation/**",
+              "ui_kits/fifo-tracker/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+        "message": "Raw hex color — use a design-system color token via var()."
+      },
+      {
+        "selector": "Literal[value=/\\b\\d+px\\b/]",
+        "message": "Raw px value — use a design-system spacing token via var()."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Alert'] > JSXAttribute > JSXIdentifier[name!=/^(?:tone|children|onClose|key|ref|className|style|children)$/]",
+        "message": "<Alert> doesn't accept that prop. Declared props: tone, children, onClose."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='tone'] > Literal[value!=/^(?:info|success|warning|danger|secondary)$/]",
+        "message": "<Alert> tone must be one of 'info' | 'success' | 'warning' | 'danger' | 'secondary'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|size|disabled|children|onClick|key|ref|className|style|children)$/]",
+        "message": "<Button> doesn't accept that prop. Declared props: variant, size, disabled, children, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:primary|outline-secondary|outline-light)$/]",
+        "message": "<Button> variant must be one of 'primary' | 'outline-secondary' | 'outline-light'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:sm|md)$/]",
+        "message": "<Button> size must be one of 'sm' | 'md'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Card'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|style|key|ref|className|style|children)$/]",
+        "message": "<Card> doesn't accept that prop. Declared props: children, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DropdownItem'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|href|key|ref|className|style|children)$/]",
+        "message": "<DropdownItem> doesn't accept that prop. Declared props: label, href."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormField'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|helpText|error|children|key|ref|className|style|children)$/]",
+        "message": "<FormField> doesn't accept that prop. Declared props: label, helpText, error, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='GainLossBadge'] > JSXAttribute > JSXIdentifier[name!=/^(?:value|currency|key|ref|className|style|children)$/]",
+        "message": "<GainLossBadge> doesn't accept that prop. Declared props: value, currency."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Modal'] > JSXAttribute > JSXIdentifier[name!=/^(?:title|open|onClose|children|key|ref|className|style|children)$/]",
+        "message": "<Modal> doesn't accept that prop. Declared props: title, open, onClose, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='NavbarLink'] > JSXAttribute > JSXIdentifier[name!=/^(?:label|href|active|onClick|key|ref|className|style|children)$/]",
+        "message": "<NavbarLink> doesn't accept that prop. Declared props: label, href, active, onClick."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Table'] > JSXAttribute > JSXIdentifier[name!=/^(?:columns|children|key|ref|className|style|children)$/]",
+        "message": "<Table> doesn't accept that prop. Declared props: columns, children."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "Alert": {
+        "replaces": []
+      },
+      "Button": {
+        "replaces": []
+      },
+      "Card": {
+        "replaces": []
+      },
+      "DropdownItem": {
+        "replaces": []
+      },
+      "FormField": {
+        "replaces": []
+      },
+      "GainLossBadge": {
+        "replaces": []
+      },
+      "Modal": {
+        "replaces": []
+      },
+      "NavbarLink": {
+        "replaces": []
+      },
+      "Table": {
+        "replaces": []
+      }
+    },
+    "tokens": [
+      "--action-primary",
+      "--action-primary-active",
+      "--action-primary-hover",
+      "--black",
+      "--blue-500",
+      "--blue-600",
+      "--blue-700",
+      "--border-default",
+      "--border-strong",
+      "--border-width",
+      "--danger-500",
+      "--font-mono",
+      "--font-sans",
+      "--gain",
+      "--gray-100",
+      "--gray-200",
+      "--gray-300",
+      "--gray-400",
+      "--gray-500",
+      "--gray-600",
+      "--gray-700",
+      "--gray-800",
+      "--gray-900",
+      "--green-700",
+      "--info-500",
+      "--leading-normal",
+      "--leading-tight",
+      "--loss",
+      "--radius-lg",
+      "--radius-md",
+      "--radius-pill",
+      "--radius-sm",
+      "--red-700",
+      "--report-header",
+      "--secondary-500",
+      "--shadow-dropdown",
+      "--shadow-modal",
+      "--shadow-none",
+      "--slate-800",
+      "--space-1",
+      "--space-2",
+      "--space-3",
+      "--space-4",
+      "--space-5",
+      "--success-500",
+      "--surface-card",
+      "--surface-hover",
+      "--surface-muted",
+      "--surface-navbar",
+      "--surface-page",
+      "--surface-stripe",
+      "--text-2xl",
+      "--text-body",
+      "--text-lg",
+      "--text-link",
+      "--text-link-hover",
+      "--text-md",
+      "--text-muted",
+      "--text-on-dark",
+      "--text-on-dark-muted",
+      "--text-sm",
+      "--text-xl",
+      "--text-xs",
+      "--warning-500",
+      "--weight-bold",
+      "--weight-normal",
+      "--weight-semibold",
+      "--white"
+    ],
+    "tokenKinds": {
+      "--gray-100": "color",
+      "--gray-200": "color",
+      "--gray-300": "color",
+      "--gray-400": "color",
+      "--gray-500": "color",
+      "--gray-600": "color",
+      "--gray-700": "color",
+      "--gray-800": "color",
+      "--gray-900": "color",
+      "--white": "color",
+      "--black": "color",
+      "--blue-500": "color",
+      "--blue-600": "color",
+      "--blue-700": "color",
+      "--green-700": "color",
+      "--red-700": "color",
+      "--slate-800": "color",
+      "--info-500": "color",
+      "--warning-500": "color",
+      "--danger-500": "color",
+      "--success-500": "color",
+      "--secondary-500": "color",
+      "--surface-page": "color",
+      "--surface-navbar": "color",
+      "--surface-card": "color",
+      "--surface-muted": "color",
+      "--surface-stripe": "color",
+      "--surface-hover": "color",
+      "--border-default": "color",
+      "--border-strong": "color",
+      "--text-body": "font",
+      "--text-muted": "font",
+      "--text-on-dark": "font",
+      "--text-on-dark-muted": "font",
+      "--text-link": "font",
+      "--text-link-hover": "font",
+      "--action-primary": "color",
+      "--action-primary-hover": "color",
+      "--action-primary-active": "color",
+      "--gain": "color",
+      "--loss": "color",
+      "--report-header": "color",
+      "--font-sans": "font",
+      "--font-mono": "font",
+      "--text-2xl": "font",
+      "--text-xl": "font",
+      "--text-lg": "font",
+      "--text-md": "font",
+      "--text-sm": "font",
+      "--text-xs": "font",
+      "--leading-tight": "font",
+      "--leading-normal": "font",
+      "--weight-normal": "font",
+      "--weight-semibold": "font",
+      "--weight-bold": "font",
+      "--space-1": "spacing",
+      "--space-2": "spacing",
+      "--space-3": "spacing",
+      "--space-4": "spacing",
+      "--space-5": "spacing",
+      "--radius-sm": "radius",
+      "--radius-md": "radius",
+      "--radius-lg": "radius",
+      "--radius-pill": "radius",
+      "--shadow-none": "shadow",
+      "--shadow-modal": "shadow",
+      "--shadow-dropdown": "shadow",
+      "--border-width": "spacing"
+    },
+    "fontFamilies": []
+  }
+}

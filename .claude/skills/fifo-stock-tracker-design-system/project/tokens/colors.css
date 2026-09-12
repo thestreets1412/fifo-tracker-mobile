@@ -1,0 +1,72 @@
+/* ==========================================================================
+   Color tokens — FIFO Stock Tracker Design System
+   "Quantum Neon" theme: dark glassmorphism, cyan/magenta/lime glow accents.
+   Sourced from .canvas_generated_theme_html_template/HomePageStockAndSaleLists_
+   QuantumNeonTheme.html and ModalCard_QuantumNeonTheme.html. Same token
+   *names* as before so Button/Card/Table/etc components keep working —
+   only the underlying values changed.
+   ========================================================================== */
+
+:root {
+  /* ---- Base: neutral scale (repurposed for a dark navy surface) ---- */
+  --gray-100: #1a2135;
+  --gray-200: #202840;
+  --gray-300: rgba(0, 240, 255, 0.15);
+  --gray-400: rgba(0, 240, 255, 0.17);
+  --gray-500: #8a94a6;
+  --gray-600: #00f0ff;
+  --gray-700: #8a94a6;
+  --gray-800: #10182b;
+  --gray-900: #0a0e1a;
+  --white: #e8ecf4;
+  --black: #000000;
+
+  /* ---- Base: brand cyan (primary action + brand text) ---- */
+  --blue-500: #00f0ff;
+  --blue-600: #33f4ff;
+  --blue-700: #00c2d1;
+
+  /* ---- Base: semantic accents (capital-gain/loss + report header) ---- */
+  --green-700: #39ff14;
+  --red-700: #ff3b30;
+  --slate-800: #ff2e93;
+
+  /* ---- Base: contextual colors (alerts / message tags) ---- */
+  --info-500: #00f0ff;
+  --warning-500: #ffc107;
+  --danger-500: #ff2e93;
+  --success-500: #39ff14;
+  --secondary-500: #8a94a6;
+
+  /* ---- Semantic aliases ---- */
+  --surface-page: var(--gray-900);
+  --surface-navbar: rgba(10, 14, 26, 0.78);
+  --surface-card: rgba(255, 255, 255, 0.05);
+  --surface-muted: rgba(255, 255, 255, 0.045);
+  --surface-stripe: rgba(0, 240, 255, 0.035);
+  --surface-hover: rgba(0, 240, 255, 0.07);
+
+  --border-default: rgba(0, 240, 255, 0.17);
+  --border-strong: rgba(0, 240, 255, 0.4);
+
+  --text-body: var(--white);
+  --text-muted: #8a94a6;
+  --text-on-dark: var(--white);
+  --text-on-dark-muted: rgba(232, 236, 244, 0.55);
+
+  --text-link: var(--blue-500);
+  --text-link-hover: var(--blue-600);
+
+  --action-primary: var(--blue-500);
+  --action-primary-hover: var(--blue-600);
+  --action-primary-active: var(--blue-700);
+
+  --gain: var(--green-700);
+  --loss: var(--red-700);
+  --report-header: var(--slate-800);
+
+  /* ---- Glow shadows (new — used by buttons/cards/inputs on focus/hover) ---- */
+  --glow-cyan: 0 0 20px rgba(0, 240, 255, 0.35);
+  --glow-magenta: 0 0 18px rgba(255, 46, 147, 0.28);
+  --glow-lime: 0 0 12px rgba(57, 255, 20, 0.32);
+}

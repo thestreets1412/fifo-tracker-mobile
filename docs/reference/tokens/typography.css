@@ -1,0 +1,27 @@
+/* ==========================================================================
+   Typography tokens — "Quantum Neon" theme
+   Google Fonts: IBM Plex Mono (labels, data, mono figures) + Space Grotesk
+   (display/body). Loaded in base.html.
+   ========================================================================== */
+
+:root {
+  --font-sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+    Consolas, "Liberation Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.4rem;      /* stat-card figures */
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600; /* .navbar-brand */
+  --weight-bold: 700;     /* headings */
+
+  --tracking-tight: 0.02em; /* .form-label */
+  --tracking-wide: 0.06em;  /* table headers, stat-card labels */
+  --tracking-brand: 0.13rem; /* .brand__wordmark */
+}
