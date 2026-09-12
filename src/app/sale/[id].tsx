@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Text, View, Alert, StyleSheet } from 'react-native';
+import { Text, View, Image, Alert, StyleSheet } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../../ui/components/Screen';
 import { Card, CardTitle } from '../../ui/components/Card';
@@ -9,6 +9,7 @@ import { EmptyState } from '../../ui/components/EmptyState';
 import { useAppStore } from '../../store/useAppStore';
 import { getSale, listLots, listAllocations, listSymbols } from '../../db/repo';
 import { toDomainSale, toDomainLot, deleteSale } from '../../services/ledger';
+import { resolveEvidenceUri } from '../../services/evidence';
 import { fromStored } from '../../core/money';
 import { buildSaleDetail } from '../../ui/saleDetail';
 import { formatQty, formatPrice, formatFxRate, formatMoneyThb, formatSignedThb } from '../../ui/format';
@@ -83,6 +84,14 @@ export default function SaleDetailScreen() {
           </View>
         ))}
       </Card>
+
+      {sale.evidenceFile ? (
+        <Image
+          source={{ uri: resolveEvidenceUri(sale.evidenceFile) }}
+          style={{ width: '100%', height: 220, borderRadius: 8, marginTop: 16 }}
+          resizeMode="contain"
+        />
+      ) : null}
 
       <View style={styles.actions}>
         <Button title="แก้ไข" variant="outline" onPress={() => router.push(`/sale/${saleId}/edit`)} style={{ flex: 1 }} />

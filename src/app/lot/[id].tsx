@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Text, View, Alert, StyleSheet } from 'react-native';
+import { Text, View, Image, Alert, StyleSheet } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '../../ui/components/Screen';
 import { Card, CardTitle } from '../../ui/components/Card';
@@ -8,6 +8,7 @@ import { EmptyState } from '../../ui/components/EmptyState';
 import { useAppStore } from '../../store/useAppStore';
 import { getLot, listSymbols } from '../../db/repo';
 import { toDomainLot, deleteLot } from '../../services/ledger';
+import { resolveEvidenceUri } from '../../services/evidence';
 import { lotCostThb } from '../../core/derive';
 import { formatQty, formatPrice, formatFxRate, formatMoneyThb } from '../../ui/format';
 import { color, space, font, fontFamily } from '../../theme/tokens';
@@ -56,6 +57,13 @@ export default function LotDetailScreen() {
         <Row label="เรต USD/THB" value={formatFxRate(lot.fxRateUsdThb)} />
         <Row label="ต้นทุนรวม" value={formatMoneyThb(cost)} />
       </Card>
+      {lot.evidenceFile ? (
+        <Image
+          source={{ uri: resolveEvidenceUri(lot.evidenceFile) }}
+          style={{ width: '100%', height: 220, borderRadius: 8, marginTop: 16 }}
+          resizeMode="contain"
+        />
+      ) : null}
       <View style={styles.actions}>
         <Button title="แก้ไข" variant="outline" onPress={() => router.push(`/lot/${lotId}/edit`)} style={{ flex: 1 }} />
         <Button title="ลบ" variant="danger" onPress={remove} style={{ flex: 1 }} />

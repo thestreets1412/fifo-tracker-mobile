@@ -6,6 +6,7 @@ import { Button } from '../../ui/components/Button';
 import { FormField, DecimalInput } from '../../ui/components/Field';
 import { DateField } from '../../ui/components/DateField';
 import { SymbolCombo } from '../../ui/components/SymbolCombo';
+import { EvidencePicker } from '../../ui/components/EvidencePicker';
 import { useAppStore } from '../../store/useAppStore';
 import { listSymbols, createSymbol, DuplicateTickerError } from '../../db/repo';
 import type { SymbolRow } from '../../core/types';
@@ -70,6 +71,10 @@ export default function NewLotScreen() {
       <FormField label="เรตแลกเงิน USD/THB" error={errors.fxRateUsdThb}>
         <DecimalInput value={form.fxRateUsdThb} onChangeText={(fxRateUsdThb) => setForm((f) => ({ ...f, fxRateUsdThb }))} placeholder="36.21" />
       </FormField>
+      <EvidencePicker
+        filename={form.evidenceFile}
+        onChange={(evidenceFile) => setForm((f) => ({ ...f, evidenceFile }))}
+      />
       <Button title="บันทึก" onPress={save} />
     </Screen>
   );
