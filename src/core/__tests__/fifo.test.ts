@@ -1,5 +1,5 @@
 import Decimal from 'decimal.js';
-import { rebuildAllocations } from '../fifo';
+import { rebuildAllocations, InsufficientLotsError } from '../fifo';
 import { makeLot, makeSale, resetIds } from './factories';
 
 beforeEach(resetIds);
@@ -146,5 +146,76 @@ describe('rebuildAllocations — symbol isolation', () => {
 
     expect(allocations).toHaveLength(1);
     expect(allocations[0]!.lotId).toBe(2);
+  });
+});
+
+describe('rebuildAllocations — the buy-date rule', () => {
+  it('refuses to draw from a lot bought after the sale date', () => {
+    const future = makeLot({ id: 1, buyDate: '2026-05-01', qty: new Decimal('10') });
+    const sale = makeSale({ id: 2, sellDate: '2026-03-01', qtySold: new Decimal('1') });
+
+    expect(() => rebuildAllocations([future], [sale])).toThrow(InsufficientLotsError);
+  });
+
+  it('allows a lot bought on the same day as the sale', () => {
+    const sameDay = makeLot({ id: 1, buyDate: '2026-03-01', qty: new Decimal('10') });
+    const sale = makeSale({ id: 2, sellDate: '2026-03-01', qtySold: new Decimal('1') });
+
+    expect(rebuildAllocations([sameDay], [sale])).toHaveLength(1);
+  });
+
+  it('skips a future lot but still uses an eligible older one', () => {
+    const eligible = makeLot({ id: 1, buyDate: '2026-01-01', qty: new Decimal('4') });
+    const future = makeLot({ id: 2, buyDate: '2026-05-01', qty: new Decimal('99') });
+    const sale = makeSale({ id: 3, sellDate: '2026-03-01', qtySold: new Decimal('4') });
+
+    const allocations = rebuildAllocations([eligible, future], [sale]);
+
+    expect(allocations).toHaveLength(1);
+    expect(allocations[0]!.lotId).toBe(1);
+  });
+});
+
+describe('InsufficientLotsError', () => {
+  it('reports what was requested and what was actually held on that date', () => {
+    const lot = makeLot({ id: 1, symbolId: 7, buyDate: '2026-01-01', qty: new Decimal('4') });
+    const sale = makeSale({
+      id: 2, symbolId: 7, sellDate: '2026-03-01', qtySold: new Decimal('10'),
+    });
+
+    try {
+      rebuildAllocations([lot], [sale]);
+      throw new Error('expected rebuildAllocations to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(InsufficientLotsError);
+      const insufficient = error as InsufficientLotsError;
+      expect(insufficient.saleId).toBe(2);
+      expect(insufficient.symbolId).toBe(7);
+      expect(insufficient.sellDate).toBe('2026-03-01');
+      expect(insufficient.requested.equals(new Decimal('10'))).toBe(true);
+      expect(insufficient.available.equals(new Decimal('4'))).toBe(true);
+    }
+  });
+
+  it('counts only quantity left after earlier sales as available', () => {
+    const lot = makeLot({ id: 1, buyDate: '2026-01-01', qty: new Decimal('10') });
+    const first = makeSale({ id: 2, sellDate: '2026-02-01', qtySold: new Decimal('8') });
+    const second = makeSale({ id: 3, sellDate: '2026-03-01', qtySold: new Decimal('5') });
+
+    try {
+      rebuildAllocations([lot], [first, second]);
+      throw new Error('expected rebuildAllocations to throw');
+    } catch (error) {
+      const insufficient = error as InsufficientLotsError;
+      expect(insufficient.saleId).toBe(3);
+      expect(insufficient.available.equals(new Decimal('2'))).toBe(true);
+    }
+  });
+
+  it('allocates nothing at all when a sale cannot be covered', () => {
+    const lot = makeLot({ id: 1, buyDate: '2026-01-01', qty: new Decimal('1') });
+    const sale = makeSale({ id: 2, sellDate: '2026-02-01', qtySold: new Decimal('5') });
+
+    expect(() => rebuildAllocations([lot], [sale])).toThrow(InsufficientLotsError);
   });
 });

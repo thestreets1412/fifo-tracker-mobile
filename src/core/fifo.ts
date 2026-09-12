@@ -3,6 +3,28 @@ import { DP } from './money';
 import type { Allocation, Lot, Sale } from './types';
 
 /**
+ * A sale could not be covered by the lots held on its sale date.
+ *
+ * Carries structured fields rather than a sentence: core has no access to
+ * ticker names, and the message has to be rendered in the user's language.
+ */
+export class InsufficientLotsError extends Error {
+  constructor(
+    readonly saleId: number,
+    readonly symbolId: number,
+    readonly sellDate: string,
+    readonly requested: Decimal,
+    readonly available: Decimal,
+  ) {
+    super(
+      `Sale ${saleId} of symbol ${symbolId} on ${sellDate} requested ` +
+        `${requested.toString()} but only ${available.toString()} was held`,
+    );
+    this.name = 'InsufficientLotsError';
+  }
+}
+
+/**
  * Replays every sale against every lot, oldest lot first, and returns the
  * allocations that result.
  *
@@ -27,16 +49,21 @@ export function rebuildAllocations(
 
   for (const sale of orderedSales) {
     let outstanding = sale.qtySold;
+    const drafted: Allocation[] = [];
 
     for (const lot of orderedLots) {
       if (outstanding.lessThanOrEqualTo(0)) break;
       if (lot.symbolId !== sale.symbolId) continue;
+      // You cannot sell what you did not yet own. The Django app never
+      // checked this, which let a mistyped year silently draw cost basis
+      // from a lot bought after the sale.
+      if (lot.buyDate > sale.sellDate) continue;
 
       const available = remaining.get(lot.id)!;
       if (available.lessThanOrEqualTo(0)) continue;
 
       const take = Decimal.min(available, outstanding);
-      allocations.push({
+      drafted.push({
         saleId: sale.id,
         lotId: lot.id,
         qtyAllocated: take,
@@ -48,6 +75,18 @@ export function rebuildAllocations(
       remaining.set(lot.id, available.minus(take));
       outstanding = outstanding.minus(take);
     }
+
+    if (outstanding.greaterThan(0)) {
+      throw new InsufficientLotsError(
+        sale.id,
+        sale.symbolId,
+        sale.sellDate,
+        sale.qtySold,
+        sale.qtySold.minus(outstanding),
+      );
+    }
+
+    allocations.push(...drafted);
   }
 
   return allocations;
