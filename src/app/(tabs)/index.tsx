@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
 import Decimal from 'decimal.js';
 import { useRouter } from 'expo-router';
@@ -31,6 +31,17 @@ export default function DashboardScreen() {
   const [fx, setFx] = useState<FxRateResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  /**
+   * Both the automatic mount/dataVersion-triggered load and a manual
+   * pull-to-refresh call `loadLive`, and either can outlive a newer call to
+   * the other (or outlive unmount). A single monotonically-incrementing
+   * generation counter is the one mechanism that covers every path: a call
+   * is stale exactly when it is no longer the most recent one issued, and
+   * nothing further bumps the ref after unmount, so an unmounted screen's
+   * in-flight call is stale too.
+   */
+  const requestIdRef = useRef(0);
 
   /**
    * Which symbols actually need a price: only those still holding shares.
@@ -78,17 +89,20 @@ export default function DashboardScreen() {
   );
 
   useEffect(() => {
-    let cancelled = false;
+    const requestId = ++requestIdRef.current;
     setLoading(true);
-    loadLive(() => cancelled).finally(() => {
-      if (!cancelled) setLoading(false);
+    loadLive(() => requestIdRef.current !== requestId).finally(() => {
+      if (requestIdRef.current === requestId) setLoading(false);
     });
-    return () => { cancelled = true; };
+    return () => { requestIdRef.current += 1; };
   }, [loadLive]);
 
   const onRefresh = useCallback(() => {
+    const requestId = ++requestIdRef.current;
     setRefreshing(true);
-    loadLive(() => false).finally(() => setRefreshing(false));
+    loadLive(() => requestIdRef.current !== requestId).finally(() => {
+      if (requestIdRef.current === requestId) setRefreshing(false);
+    });
   }, [loadLive]);
 
   const summary = useMemo(
