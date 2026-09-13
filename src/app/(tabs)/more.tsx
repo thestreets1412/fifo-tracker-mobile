@@ -14,7 +14,12 @@ export default function MoreScreen() {
         </ListRow>
       </Link>
       <View style={styles.disabledRow}><Text style={styles.disabled}>สำรอง/กู้คืนข้อมูล (เร็วๆ นี้)</Text></View>
-      <View style={styles.disabledRow}><Text style={styles.disabled}>รายงาน PDF (เร็วๆ นี้)</Text></View>
+      <Link href="/report" asChild>
+        <ListRow onPress={() => {}}>
+          <Text style={styles.item}>รายงาน PDF / CSV</Text>
+          <Text style={styles.chev}>›</Text>
+        </ListRow>
+      </Link>
       <View style={styles.disabledRow}><Text style={styles.disabled}>ตั้งค่าและล็อก (เร็วๆ นี้)</Text></View>
     </Screen>
   );

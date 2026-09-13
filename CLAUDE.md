@@ -21,14 +21,19 @@ ever reach into the other.** A read-only snapshot of the parts worth porting is 
 
 ## Status
 
-Pre-implementation. Plan 1 of 8 is written; no source code exists yet.
+Plans 1–4 are implemented and locally merged. Plan 5 (PDF/CSV reports) is implemented
+on `develop` as working-tree changes, not yet committed or merged. Plans 6–8 remain:
+encrypted backup/restore, PIN lock, and monetization. Read `docs/HANDOFF.md` for the
+verified state and remaining Android device checks. PDF is currently enabled for
+testing; plan 8 must add purchase checks before release. CSV stays free.
 
 ## Commands
 
 ```bash
 npm test                 # Jest, plain Node — core/ needs no emulator
 npm test -- fifo         # one suite
-npx expo start           # dev server (once the app shell exists, plan 3)
+npm run typecheck        # TypeScript, no output
+npx expo start           # dev server
 ```
 
 ## Non-Negotiable Rules
@@ -77,6 +82,15 @@ src/
 
 The layering mirrors the Django app's choice to keep logic in `services.py` rather than in
 views or models, pushed one step further: `core/` has no I/O whatsoever.
+
+`src/services/report.ts` captures a read-only ledger snapshot. `src/report/` contains
+the shared report types, CSV/HTML rendering, actual PDF footer stamping, and an
+injected export coordinator. `src/report/platform.ts` is the native I/O boundary.
+Only that boundary imports Expo; the renderers/coordinator run under Node.
+
+The user's workspace boundary applies to tool outputs too: keep generated files,
+temporary files, npm/Jest/Metro caches and Expo CLI state inside this repository.
+`.local-tools/` is ignored for this purpose. Never change the separate Django project.
 
 ## Privacy Is a Product Constraint
 

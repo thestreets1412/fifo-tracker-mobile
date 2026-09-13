@@ -46,3 +46,6 @@ yarn-error.*
 
 # Superpowers per-plan scratch workspace (ledgers, briefs, review packages)
 .superpowers/
+
+# Project-local tool caches and temporary files (keep tooling inside this workspace)
+.local-tools/

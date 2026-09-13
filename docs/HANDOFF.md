@@ -1,29 +1,30 @@
 # Session Handoff — 2026-09-13
 
-State of `D:\Python\fifo-tracker-mobile` at the end of plan 4. Read this first if you
+State of `D:\Python\fifo-tracker-mobile` after implementing plan 5. Read this first if you
 are picking the project up cold.
 
 ---
 
 ## One-paragraph summary
 
-Four of the eight planned subsystems are built, reviewed, and merged. The app has a
-working money engine, an on-device SQLite ledger, a full buy/sell transaction UI, and a
-live portfolio dashboard with keyless quotes and FX. Plans 5 through 8 — PDF report,
-backup/restore, PIN lock, and monetization — have not been written yet; only the spec
-describes them. Nothing has ever run on a real Android device or emulator, so every
-manual-verification item from plans 3 and 4 is still unconfirmed.
+Plans 1–4 are built and locally merged. Plan 5 is implemented as uncommitted changes
+on `develop`: English PDF/CSV reports, whole-portfolio or single-ticker selection,
+HTML preview, save and share, and actual PDF footers. Its automated checks pass;
+desktop Chromium PDF rendering was visually inspected, but the Android UI, printer,
+picker and share sheet have not been exercised on a device or emulator. Plans 6–8
+(backup/restore, PIN lock, monetization) still need implementation plans. PDF access
+is intentionally open for testing until plan 8; CSV remains free.
 
 ## Verified state
 
 | Fact | Value |
 |---|---|
-| Working branch | `develop` (clean) |
-| `main` | `6b51e78`, fast-forwarded from `develop`, identical content |
+| Working branch | `develop` at `77ceb37`, with uncommitted plan-5 changes |
+| `main` | `6b51e78`; `develop` has one additional committed handoff document plus uncommitted plan 5 |
 | Unpushed | `main` is 26 commits ahead of `origin/main`; nothing has been pushed |
-| Tests | 32 suites, 296 tests, all passing (`npm test`) |
+| Tests | 39 suites, 347 tests, all passing (Jest, serial, project-local cache) |
 | Types | `npm run typecheck` clean |
-| Source files | 89 under `src/` |
+| Source files | 107 under `src/` |
 
 Confirmed by running the suite on 2026-09-13, not carried over from an earlier session.
 
@@ -54,22 +55,42 @@ React-free modules under `src/ui/`.
 the live Dashboard, `FxRateField`, `AllocationBar`, `StatTile`. `fetch` is an injected
 dependency throughout, so no test ever touches the network.
 
+**Plan 5 — PDF and CSV reports**
+(`docs/superpowers/plans/2026-09-13-mobile-pdf-csv-report.md`)
+`src/services/report.ts` captures the ledger in one read transaction. `src/report/`
+renders the English HTML and CSV, stamps actual PDF pages with `pdf-lib`, and
+coordinates file generation through injected dependencies. `platform.ts` connects
+Expo Print, FileSystem v57 and Sharing. `/report` provides selection, full-screen
+HTML preview, and save/share for both formats. No schema or core changes.
+
+The user explicitly chose: include free CSV now; let tickers continue across pages;
+offer all/one-ticker reports; keep real PDF page numbers; enable PDF for testing
+until plan 8. Preview is HTML, not a PDF viewer. The printer adds pagination and
+the footer afterward. No owner/date-filter/evidence/live-price additions.
+
+Validation: typecheck and 347 Jest tests pass, Android Metro/Hermes export passes,
+and 3-page/11-page desktop Chromium PDFs were inspected with Poppler and pypdf/
+pdfplumber (page numbers, repeated headers, margins, no trailing blank page).
+The long document is a synthetic layout stress fixture, not an accounting sample.
+These are proxies only: no Android screen or native interaction has been verified.
+
 ## What is left
 
-Plans 5 through 8 exist only as spec sections. **No plan documents have been written for
-them.** Each needs `superpowers:writing-plans` before it can be executed.
+Plans 6 through 8 exist only as spec sections. **No plan documents have been written
+for them.** Write and agree each implementation plan before executing it. The
+`superpowers:writing-plans` skill referenced by earlier sessions was unavailable
+in the plan-5 Codex session; the user approved the plan directly instead.
 
 | # | Subsystem | Spec sections | Notes |
 |---|---|---|---|
-| 5 | PDF report | §7.3, §4.2 | `expo-print` renders HTML; preview in WebView, save, share. Report is English-only on purpose. One ticker per page via `page-break-after: always`. Port the layout from `docs/reference/django/reports.py`. |
 | 6 | Backup and restore | §4.1–§4.6 | One AES-256 ZIP containing `manifest.json`, `backup.json`, `lots.csv`, `sales.csv`, `evidence/`. Restore is replace-only and auto-exports first. Export hands the file to the share sheet; the app never uploads. |
 | 7 | PIN lock | §6.1–§6.4 | PIN, recovery answers, data at rest, and a separate export password. The export password is deliberately not the PIN — §6.4 explains why. |
 | 8 | Monetization | §8, §8.1 | One-time in-app purchase, no advertising. PDF report is the only paid feature; export and backup stay free. |
 
-The three disabled rows in `src/app/(tabs)/more.tsx` are the entry points these plans
-will fill in.
+The two remaining disabled rows in `src/app/(tabs)/more.tsx` cover backup/restore
+and settings/lock. Plan 8 must gate PDF actions in `/report`; CSV stays ungated.
 
-## Blockers to resolve before planning 5–8
+## Blockers to resolve before planning 6–8
 
 From the spec's own "Open Items for Implementation Planning" section, still open:
 
@@ -85,11 +106,16 @@ stooq as fallback.
 
 ## Owed before any release
 
-**A human device pass.** No Android device, emulator, or web target was available in any
-session so far. Every manual-verification checklist item in plans 3 and 4 is deferred and
+**A human device pass.** No Android device or emulator has been used in this project.
+Every manual-verification checklist item in plans 3, 4 and 5 is deferred and
 unconfirmed. The automated proxy used instead was `npm run typecheck && npm test` plus
 `npx expo export --platform android` to prove the bundle builds under Metro and Hermes.
 That proves it compiles and bundles. It does not prove a single screen renders.
+
+For plan 5 specifically: verify full-screen preview scroll/zoom and back navigation,
+PDF margins and long tables on the Android print engine, SAF cancellation/save and
+opening from Files, sharing/opening on another device, and airplane-mode operation.
+PDF currently has no entitlement gate, by user decision; add it in plan 8 before release.
 
 ## Known deferred items
 
@@ -143,12 +169,13 @@ Read only when the work actually touches them:
 - Pushing to `origin` requires explicit permission each time. It has not been given.
 - Plans 1 through 4 were all executed with `superpowers:subagent-driven-development`: a
   fresh implementer subagent per task, a task-scoped review after each, and one
-  whole-branch review at the end. Continue that pattern.
+  whole-branch review at the end. Plan 5 was implemented and reviewed in the current
+  Codex task without subagents. Do not describe it as independently subagent-reviewed.
 - The SDD ledger under `.superpowers/sdd/` is git-ignored scratch and is deleted when a
   plan completes. It does not exist right now, which is correct.
 
 ## Suggested opening line for the next session
 
-> Read `docs/HANDOFF.md`, then write plan 5 (the PDF report) with
-> `superpowers:writing-plans`, working from spec §7.3 and
-> `docs/reference/django/reports.py`.
+> Read `docs/HANDOFF.md`. Plan 5 is implemented but needs an Android device pass.
+> For plan 6, first resolve the React Native AES-256 ZIP compatibility question,
+> then write the backup/restore plan from spec §4 before implementing it.
