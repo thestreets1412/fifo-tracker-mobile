@@ -12,6 +12,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { listSymbols, createSymbol, DuplicateTickerError } from '../../db/repo';
 import type { SymbolRow } from '../../core/types';
 import { addSale } from '../../services/ledger';
+import { backfillSymbolName } from '../../services/symbolLookup';
 import { InsufficientLotsError } from '../../core/fifo';
 import { validateSaleForm, type SaleFormState, type SaleFormErrors } from '../../ui/saleForm';
 import { todayYmd } from '../../ui/dateInput';
@@ -32,8 +33,18 @@ export default function NewSaleScreen() {
 
   function pick(symbol: SymbolRow) { setForm((f) => ({ ...f, symbolId: symbol.id })); setQuery(symbol.ticker); }
   function add(ticker: string) {
-    try { const c = createSymbol(db, ticker); reload(); pick(c); }
-    catch (e) { if (e instanceof DuplicateTickerError) Alert.alert('มีสัญลักษณ์นี้แล้ว', ticker); else throw e; }
+    try {
+      const c = createSymbol(db, ticker);
+      reload();
+      pick(c);
+      // Advisory only (spec §7.4): the symbol already exists and the form
+      // is already usable. If a name comes back, the list refreshes; if
+      // not, nothing happens and nothing is reported.
+      void backfillSymbolName(db, c).then((name) => { if (name) reload(); });
+    } catch (e) {
+      if (e instanceof DuplicateTickerError) Alert.alert('มีสัญลักษณ์นี้แล้ว', ticker);
+      else throw e;
+    }
   }
 
   function save() {

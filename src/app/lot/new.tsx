@@ -12,6 +12,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { listSymbols, createSymbol, DuplicateTickerError } from '../../db/repo';
 import type { SymbolRow } from '../../core/types';
 import { addLot } from '../../services/ledger';
+import { backfillSymbolName } from '../../services/symbolLookup';
 import { validateLotForm, type LotFormState, type LotFormErrors } from '../../ui/lotForm';
 import { todayYmd } from '../../ui/dateInput';
 
@@ -38,6 +39,10 @@ export default function NewLotScreen() {
       const created = createSymbol(db, ticker);
       reload();
       pick(created);
+      // Advisory only (spec §7.4): the symbol already exists and the form
+      // is already usable. If a name comes back, the list refreshes; if
+      // not, nothing happens and nothing is reported.
+      void backfillSymbolName(db, created).then((name) => { if (name) reload(); });
     } catch (e) {
       if (e instanceof DuplicateTickerError) Alert.alert('มีสัญลักษณ์นี้แล้ว', ticker);
       else throw e;

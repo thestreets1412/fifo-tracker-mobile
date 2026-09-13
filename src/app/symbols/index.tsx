@@ -8,6 +8,7 @@ import { Button } from '../../ui/components/Button';
 import { FormField, TextInput } from '../../ui/components/Field';
 import { useAppStore } from '../../store/useAppStore';
 import { listSymbolsWithCounts } from '../../services/symbols';
+import { backfillMissingSymbolNames } from '../../services/symbolLookup';
 import { renameSymbol, deleteSymbol, SymbolInUseError } from '../../db/repo';
 import { color, space, font, fontFamily } from '../../theme/tokens';
 
@@ -17,6 +18,7 @@ export default function SymbolsScreen() {
   const reload = useAppStore((s) => s.reload);
   const rows = useMemo(() => listSymbolsWithCounts(db), [db, dataVersion]);
   const [editing, setEditing] = useState<{ id: number; name: string } | null>(null);
+  const [lookingUp, setLookingUp] = useState(false);
 
   function saveName() {
     if (!editing) return;
@@ -44,9 +46,30 @@ export default function SymbolsScreen() {
     ]);
   }
 
+  async function fillNames() {
+    setLookingUp(true);
+    try {
+      const filled = await backfillMissingSymbolNames(db);
+      reload();
+      Alert.alert(
+        'ดึงชื่อเสร็จแล้ว',
+        filled === 0 ? 'ไม่พบชื่อใหม่' : `เติมชื่อได้ ${filled} รายการ`,
+      );
+    } finally {
+      setLookingUp(false);
+    }
+  }
+
   return (
     <Screen scroll>
       <Stack.Screen options={{ title: 'จัดการสัญลักษณ์', headerShown: true }} />
+      <Button
+        title={lookingUp ? 'กำลังดึงชื่อ…' : 'ดึงชื่อจากอินเทอร์เน็ต'}
+        variant="outline"
+        disabled={lookingUp}
+        onPress={() => { void fillNames(); }}
+        style={{ marginBottom: space[3] }}
+      />
       {rows.length === 0 ? (
         <EmptyState title="ยังไม่มีสัญลักษณ์" hint="เพิ่มได้จากฟอร์มบันทึกการซื้อ" />
       ) : (
