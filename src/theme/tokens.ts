@@ -51,11 +51,12 @@ export const font = {
 } as const;
 
 /**
- * Allocation-chart series colors, in order. Drawn from the Quantum Neon
- * accents so a chart slice and a gain figure never share a color and
- * imply a relationship that is not there.
+ * Allocation-chart series colors, in order. Chosen so no entry reuses
+ * `color.gain`/`color.success` (#39ff14), `color.loss` (#ff3b30), or
+ * `color.actionPrimary` (#00f0ff) — a chart slice must never share a color
+ * with those semantic meanings and imply a relationship that is not there.
  */
 export const chartPalette = [
-  '#00f0ff', '#ff2e93', '#39ff14', '#ffc107',
+  '#4d7cff', '#ff2e93', '#e9c46a', '#ffc107',
   '#8a6cff', '#ff7a45', '#00d4a0', '#ff5c8a',
 ] as const;
