@@ -2,7 +2,8 @@ import type { SymbolRow } from '../core/types';
 import type { SqlDatabase } from '../db/sqlDatabase';
 import { listSymbols, renameSymbol } from '../db/repo';
 import { defaultNetDeps, type NetDeps } from './fx';
-import { fetchQuote } from './quotes';
+import { httpGetText } from './http';
+import { yahooChartUrl, parseYahooChart } from './quotes';
 
 /**
  * Spec §7.4: on add, the app attempts to validate the ticker against the
@@ -24,8 +25,13 @@ export async function backfillSymbolName(
 ): Promise<string | null> {
   if (symbol.name.trim() !== '') return null;
 
+  // Yahoo directly, not fetchQuote's full yahoo-then-stooq chain: this only
+  // ever needs the name, and stooq's CSV has no name field (parseStooqCsv
+  // always returns name: null), so falling through to it on a Yahoo failure
+  // would be a wasted round trip that could never produce a usable result.
   try {
-    const quote = await fetchQuote(symbol.ticker, deps);
+    const body = await httpGetText(yahooChartUrl(symbol.ticker), deps.fetch);
+    const quote = parseYahooChart(body, symbol.ticker);
     if (!quote.name) return null;
     renameSymbol(db, symbol.id, quote.name);
     return quote.name;
