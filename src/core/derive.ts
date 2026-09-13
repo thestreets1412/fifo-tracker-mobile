@@ -41,3 +41,20 @@ export function saleCostBasisThb(sale: Sale, allocations: readonly Allocation[])
 export function saleCapitalGainThb(sale: Sale, allocations: readonly Allocation[]): Decimal {
   return saleProceedsThb(sale).minus(saleCostBasisThb(sale, allocations));
 }
+
+/**
+ * What the *unsold* portion of this lot cost, in THB.
+ *
+ * Distinct from lotCostThb, which is what the whole lot cost when it was
+ * bought. Both are needed and neither replaces the other: the lot detail
+ * screen shows the purchase cost; the dashboard shows the cost of what is
+ * still held, so a fully-sold lot contributes nothing to portfolio cost
+ * basis. This is the figure the Django original computes inline as
+ * `remaining * price_usd * fx_rate` (docs/reference/django/services.py:167).
+ */
+export function lotRemainingCostThb(lot: Lot, allocations: readonly Allocation[]): Decimal {
+  return lotQtyRemaining(lot, allocations)
+    .times(lot.priceUsd)
+    .times(lot.fxRateUsdThb)
+    .toDecimalPlaces(DP.money, Decimal.ROUND_HALF_EVEN);
+}

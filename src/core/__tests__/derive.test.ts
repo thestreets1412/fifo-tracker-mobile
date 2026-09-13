@@ -2,11 +2,13 @@ import Decimal from 'decimal.js';
 import {
   lotQtyRemaining,
   lotCostThb,
+  lotRemainingCostThb,
   saleProceedsThb,
   saleCostBasisThb,
   saleCapitalGainThb,
 } from '../derive';
 import { rebuildAllocations } from '../fifo';
+import type { Allocation, Lot } from '../types';
 import { makeLot, makeSale, resetIds } from './factories';
 
 beforeEach(resetIds);
@@ -105,5 +107,55 @@ describe('saleCapitalGainThb', () => {
     const allocations = rebuildAllocations([lot], [sale]);
 
     expect(saleCapitalGainThb(sale, allocations).isNegative()).toBe(true);
+  });
+});
+
+describe('lotRemainingCostThb', () => {
+  it('is the full lot cost when nothing has been sold', () => {
+    const lot: Lot = {
+      id: 1, symbolId: 1, buyDate: '2026-01-01',
+      priceUsd: new Decimal('100'), qty: new Decimal('10'), fxRateUsdThb: new Decimal('36'),
+      createdAt: '2026-01-01T00:00:00.000Z', evidenceFile: null,
+    };
+    expect(lotRemainingCostThb(lot, []).toString()).toBe('36000');
+    expect(lotRemainingCostThb(lot, []).toString()).toBe(lotCostThb(lot).toString());
+  });
+
+  it('costs only the unsold shares once part of the lot is allocated', () => {
+    const lot: Lot = {
+      id: 1, symbolId: 1, buyDate: '2026-01-01',
+      priceUsd: new Decimal('100'), qty: new Decimal('10'), fxRateUsdThb: new Decimal('36'),
+      createdAt: '2026-01-01T00:00:00.000Z', evidenceFile: null,
+    };
+    const allocations: Allocation[] = [
+      { saleId: 1, lotId: 1, qtyAllocated: new Decimal('4'), costBasisThb: new Decimal('14400') },
+    ];
+    expect(lotRemainingCostThb(lot, allocations).toString()).toBe('21600');
+  });
+
+  it('is zero for a fully-sold lot, while lotCostThb still reports what it cost', () => {
+    const lot: Lot = {
+      id: 1, symbolId: 1, buyDate: '2026-01-01',
+      priceUsd: new Decimal('100'), qty: new Decimal('10'), fxRateUsdThb: new Decimal('36'),
+      createdAt: '2026-01-01T00:00:00.000Z', evidenceFile: null,
+    };
+    const allocations: Allocation[] = [
+      { saleId: 1, lotId: 1, qtyAllocated: new Decimal('10'), costBasisThb: new Decimal('36000') },
+    ];
+    expect(lotRemainingCostThb(lot, allocations).toString()).toBe('0');
+    expect(lotCostThb(lot).toString()).toBe('36000');
+  });
+
+  it('rounds to money precision with ROUND_HALF_EVEN', () => {
+    const lot: Lot = {
+      id: 1, symbolId: 1, buyDate: '2026-01-01',
+      priceUsd: new Decimal('1.234567'), qty: new Decimal('3'), fxRateUsdThb: new Decimal('36.2137'),
+      createdAt: '2026-01-01T00:00:00.000Z', evidenceFile: null,
+    };
+    // 1.234567 * 3 * 36.2137 = 134.11815... → 4 dp half-even
+    expect(lotRemainingCostThb(lot, []).decimalPlaces()).toBeLessThanOrEqual(4);
+    expect(lotRemainingCostThb(lot, []).toFixed(4)).toBe(
+      new Decimal('1.234567').times(3).times('36.2137').toFixed(4, Decimal.ROUND_HALF_EVEN),
+    );
   });
 });
