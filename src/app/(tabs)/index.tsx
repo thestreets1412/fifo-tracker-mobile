@@ -22,6 +22,9 @@ import { formatQuoteAge } from '../../ui/quoteAge';
 import { formatMoneyThb, formatSignedThb, formatQty, formatFxRate } from '../../ui/format';
 import { color, space, font, fontFamily } from '../../theme/tokens';
 
+/** How many symbols' quotes to fetch at once — see the comment in loadLive. */
+const QUOTE_FETCH_CONCURRENCY = 4;
+
 export default function DashboardScreen() {
   const db = useAppStore((s) => s.db)!;
   const dataVersion = useAppStore((s) => s.dataVersion);
@@ -68,20 +71,26 @@ export default function DashboardScreen() {
       if (isCancelled()) return;
       setFx(rate);
 
-      // allSettled, not all: spec §5 requires one failed lookup to degrade
-      // that symbol only. getQuote already resolves to null instead of
-      // throwing, so a rejection here would mean a genuine bug — it is
-      // still tolerated so the other symbols survive it.
-      const results = await Promise.allSettled(
-        symbolsNeedingPrice.map(async (symbol) => ({ symbol, quote: await getQuote(db, symbol.ticker) })),
-      );
-      if (isCancelled()) return;
-
+      // allSettled per small batch, not one giant Promise.allSettled: spec §5
+      // requires one failed lookup to degrade that symbol only, but Yahoo and
+      // stooq are unofficial, rate-limited endpoints — the same reason
+      // backfillMissingSymbolNames (symbolLookup.ts) serializes its requests
+      // instead of firing them all at once. A small concurrency limit here
+      // keeps per-symbol degradation without bursting the whole portfolio's
+      // worth of requests at a rate limiter simultaneously.
       const next = new Map<number, LivePrice>();
-      for (const result of results) {
-        if (result.status !== 'fulfilled' || !result.value.quote) continue;
-        const { symbol, quote } = result.value;
-        next.set(symbol.id, { priceUsd: quote.priceUsd, fetchedAt: quote.fetchedAt, stale: quote.stale });
+      for (let i = 0; i < symbolsNeedingPrice.length; i += QUOTE_FETCH_CONCURRENCY) {
+        const batch = symbolsNeedingPrice.slice(i, i + QUOTE_FETCH_CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map(async (symbol) => ({ symbol, quote: await getQuote(db, symbol.ticker) })),
+        );
+        if (isCancelled()) return;
+
+        for (const result of results) {
+          if (result.status !== 'fulfilled' || !result.value.quote) continue;
+          const { symbol, quote } = result.value;
+          next.set(symbol.id, { priceUsd: quote.priceUsd, fetchedAt: quote.fetchedAt, stale: quote.stale });
+        }
       }
       setPrices(next);
     },
@@ -91,18 +100,20 @@ export default function DashboardScreen() {
   useEffect(() => {
     const requestId = ++requestIdRef.current;
     setLoading(true);
-    loadLive(() => requestIdRef.current !== requestId).finally(() => {
-      if (requestIdRef.current === requestId) setLoading(false);
-    });
+    // Unlike the data writes inside loadLive (guarded by isCancelled so a
+    // superseded call can't overwrite fresher data), the spinner belongs to
+    // whichever call raised it: it must clear unconditionally, or a call
+    // superseded by e.g. a pull-to-refresh would leave it stuck forever. A
+    // setState after unmount is a no-op in React 18+, so no guard is needed
+    // for that case either.
+    loadLive(() => requestIdRef.current !== requestId).finally(() => setLoading(false));
     return () => { requestIdRef.current += 1; };
   }, [loadLive]);
 
   const onRefresh = useCallback(() => {
     const requestId = ++requestIdRef.current;
     setRefreshing(true);
-    loadLive(() => requestIdRef.current !== requestId).finally(() => {
-      if (requestIdRef.current === requestId) setRefreshing(false);
-    });
+    loadLive(() => requestIdRef.current !== requestId).finally(() => setRefreshing(false));
   }, [loadLive]);
 
   const summary = useMemo(
@@ -137,7 +148,7 @@ export default function DashboardScreen() {
         <StatTile
           label="มูลค่าพอร์ต"
           value={summary.totalValueThb ? formatMoneyThb(summary.totalValueThb) : '—'}
-          sub={summary.totalValueThb ? undefined : 'ราคาบางตัวยังดึงไม่ได้'}
+          sub={fx && !summary.totalValueThb ? 'ราคาบางตัวยังดึงไม่ได้' : undefined}
         />
         <StatTile
           label="กำไรยังไม่รับรู้"
