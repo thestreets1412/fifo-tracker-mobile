@@ -95,9 +95,15 @@ function isFresh(fetchedAt: string, now: Date): boolean {
  * The rate for one specific date, from cache or the network.
  *
  * Returns null only when there is nothing to show at all: the fetch failed
- * and no row was ever cached for that date. Callers must handle null by
- * degrading, never by throwing — spec §5 treats network failure as a normal
- * state.
+ * and no row was ever cached for that date, or `rateDate` is in the future.
+ * Callers must handle null by degrading, never by throwing — spec §5 treats
+ * network failure as a normal state.
+ *
+ * A future `rateDate` is refused outright, without fetching or caching
+ * anything: Frankfurter clamps a future request to its latest available
+ * rate, and writing that under the future date's cache key would freeze a
+ * wrong rate forever once that date becomes today-or-past (the cache policy
+ * below never refetches a resolved past/today date).
  */
 export async function getFxRateForDate(
   db: SqlDatabase,
@@ -105,8 +111,11 @@ export async function getFxRateForDate(
   deps: NetDeps = defaultNetDeps,
 ): Promise<FxRateResult | null> {
   const now = deps.now();
+  const today = todayYmd(now);
+  if (rateDate > today) return null;
+
   const cached = getFxRateRow(db, rateDate);
-  const isPast = rateDate < todayYmd(now);
+  const isPast = rateDate < today;
 
   if (cached && (isPast || isFresh(cached.fetchedAt, now))) {
     return { rate: fromStored(cached.usdThb), rateDate, fetchedAt: cached.fetchedAt, stale: false };

@@ -118,6 +118,19 @@ describe('getFxRateForDate', () => {
     await expect(getFxRateForDate(db, '2026-09-11', deps(new TypeError('offline'), '2026-09-13T09:00:00.000Z')))
       .resolves.toBeNull();
   });
+
+  it('rejects a future rateDate without fetching or caching anything', async () => {
+    const nowIso = '2026-09-13T09:00:00.000Z';
+    const today = new Date(nowIso);
+    const future = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10);
+    const futureYmd = `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, '0')}-${String(future.getDate()).padStart(2, '0')}`;
+
+    const urls: string[] = [];
+    const result = await getFxRateForDate(db, futureYmd, deps(BODY, nowIso, urls));
+    expect(result).toBeNull();
+    expect(urls).toEqual([]);
+    expect(getFxRateRow(db, futureYmd)).toBeNull();
+  });
 });
 
 describe('getTodayFxRate', () => {
