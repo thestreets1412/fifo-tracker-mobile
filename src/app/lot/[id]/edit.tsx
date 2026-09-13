@@ -7,6 +7,7 @@ import { FormField, DecimalInput } from '../../../ui/components/Field';
 import { DateField } from '../../../ui/components/DateField';
 import { SymbolCombo } from '../../../ui/components/SymbolCombo';
 import { EvidencePicker } from '../../../ui/components/EvidencePicker';
+import { FxRateField } from '../../../ui/components/FxRateField';
 import { EmptyState } from '../../../ui/components/EmptyState';
 import { useAppStore } from '../../../store/useAppStore';
 import { listSymbols, getLot, createSymbol, DuplicateTickerError } from '../../../db/repo';
@@ -88,9 +89,12 @@ export default function EditLotScreen() {
       <FormField label="จำนวน" error={errors.qty}>
         <DecimalInput value={form.qty} onChangeText={(qty) => setForm((f) => (f ? { ...f, qty } : f))} />
       </FormField>
-      <FormField label="เรตแลกเงิน USD/THB" error={errors.fxRateUsdThb}>
-        <DecimalInput value={form.fxRateUsdThb} onChangeText={(fxRateUsdThb) => setForm((f) => (f ? { ...f, fxRateUsdThb } : f))} />
-      </FormField>
+      <FxRateField
+        value={form.fxRateUsdThb}
+        date={form.buyDate}
+        onChange={(fxRateUsdThb) => setForm((f) => (f ? { ...f, fxRateUsdThb } : f))}
+        error={errors.fxRateUsdThb}
+      />
       <EvidencePicker
         filename={form.evidenceFile}
         onChange={(evidenceFile) => setForm((f) => (f ? { ...f, evidenceFile } : f))}

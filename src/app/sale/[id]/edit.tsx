@@ -7,6 +7,7 @@ import { FormField, DecimalInput } from '../../../ui/components/Field';
 import { DateField } from '../../../ui/components/DateField';
 import { SymbolCombo } from '../../../ui/components/SymbolCombo';
 import { EvidencePicker } from '../../../ui/components/EvidencePicker';
+import { FxRateField } from '../../../ui/components/FxRateField';
 import { EmptyState } from '../../../ui/components/EmptyState';
 import { useAppStore } from '../../../store/useAppStore';
 import { listSymbols, getSale, createSymbol, DuplicateTickerError } from '../../../db/repo';
@@ -87,9 +88,12 @@ export default function EditSaleScreen() {
       <FormField label="ค่าธรรมเนียม (USD)" error={errors.feeUsd} helpText="เว้นว่างได้ = 0">
         <DecimalInput value={form.feeUsd} onChangeText={(feeUsd) => setForm((f) => (f ? { ...f, feeUsd } : f))} />
       </FormField>
-      <FormField label="เรตแลกเงิน USD/THB" error={errors.fxRateUsdThb}>
-        <DecimalInput value={form.fxRateUsdThb} onChangeText={(fxRateUsdThb) => setForm((f) => (f ? { ...f, fxRateUsdThb } : f))} />
-      </FormField>
+      <FxRateField
+        value={form.fxRateUsdThb}
+        date={form.sellDate}
+        onChange={(fxRateUsdThb) => setForm((f) => (f ? { ...f, fxRateUsdThb } : f))}
+        error={errors.fxRateUsdThb}
+      />
       <EvidencePicker
         filename={form.evidenceFile}
         onChange={(evidenceFile) => setForm((f) => (f ? { ...f, evidenceFile } : f))}
