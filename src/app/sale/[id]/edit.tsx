@@ -14,7 +14,7 @@ import type { SymbolRow } from '../../../core/types';
 import { editSale } from '../../../services/ledger';
 import { InsufficientLotsError } from '../../../core/fifo';
 import { validateSaleForm, type SaleFormState, type SaleFormErrors } from '../../../ui/saleForm';
-import { formatQty } from '../../../ui/format';
+import { insufficientLotsMessage } from '../../../ui/errors';
 
 export default function EditSaleScreen() {
   const db = useAppStore((s) => s.db)!;
@@ -63,8 +63,7 @@ export default function EditSaleScreen() {
       router.back();
     } catch (e) {
       if (e instanceof InsufficientLotsError) {
-        const ticker = symbols.find((s) => s.id === e.symbolId)?.ticker ?? '';
-        Alert.alert('จำนวนไม่พอขาย', `ขาย ${ticker} จำนวน ${formatQty(e.requested)} ในวันที่ ${e.sellDate} ไม่ได้ — มีอยู่เพียง ${formatQty(e.available)} ณ วันนั้น`);
+        Alert.alert('จำนวนไม่พอขาย', insufficientLotsMessage(e, symbols));
       } else throw e;
     }
   }

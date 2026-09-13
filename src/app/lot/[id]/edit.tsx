@@ -12,6 +12,8 @@ import { useAppStore } from '../../../store/useAppStore';
 import { listSymbols, getLot, createSymbol, DuplicateTickerError } from '../../../db/repo';
 import type { SymbolRow } from '../../../core/types';
 import { editLot } from '../../../services/ledger';
+import { InsufficientLotsError } from '../../../core/fifo';
+import { insufficientLotsMessage } from '../../../ui/errors';
 import { validateLotForm, type LotFormState, type LotFormErrors } from '../../../ui/lotForm';
 
 export default function EditLotScreen() {
@@ -59,9 +61,15 @@ export default function EditLotScreen() {
     const { input, errors: errs } = validateLotForm(form!);
     setErrors(errs);
     if (!input) return;
-    editLot(db, lotId, input);
-    reload();
-    router.back();
+    try {
+      editLot(db, lotId, input);
+      reload();
+      router.back();
+    } catch (e) {
+      if (e instanceof InsufficientLotsError) {
+        Alert.alert('บันทึกไม่ได้', `แก้ไขล็อตนี้ไม่ได้ เพราะมีการขายที่ต้องใช้ล็อตนี้เป็นหลักฐาน — ${insufficientLotsMessage(e, symbols)}`);
+      } else throw e;
+    }
   }
 
   return (

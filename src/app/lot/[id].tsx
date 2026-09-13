@@ -10,6 +10,8 @@ import { getLot, listSymbols } from '../../db/repo';
 import { toDomainLot, deleteLot } from '../../services/ledger';
 import { resolveEvidenceUri } from '../../services/evidence';
 import { lotCostThb } from '../../core/derive';
+import { InsufficientLotsError } from '../../core/fifo';
+import { insufficientLotsMessage } from '../../ui/errors';
 import { formatQty, formatPrice, formatFxRate, formatMoneyThb } from '../../ui/format';
 import { color, space, font, fontFamily } from '../../theme/tokens';
 
@@ -41,7 +43,22 @@ export default function LotDetailScreen() {
   function remove() {
     Alert.alert('ลบการซื้อ', 'ยืนยันการลบล็อตนี้? การจัดสรรจะถูกคำนวณใหม่ทั้งหมด', [
       { text: 'ยกเลิก', style: 'cancel' },
-      { text: 'ลบ', style: 'destructive', onPress: () => { deleteLot(db, lotId); reload(); router.back(); } },
+      {
+        text: 'ลบ',
+        style: 'destructive',
+        onPress: () => {
+          try {
+            deleteLot(db, lotId);
+            reload();
+            router.back();
+          } catch (e) {
+            if (e instanceof InsufficientLotsError) {
+              const symbols = listSymbols(db);
+              Alert.alert('ลบไม่ได้', `ลบล็อตนี้ไม่ได้ เพราะมีการขายที่ต้องใช้ล็อตนี้เป็นหลักฐาน — ${insufficientLotsMessage(e, symbols)}`);
+            } else throw e;
+          }
+        },
+      },
     ]);
   }
 
