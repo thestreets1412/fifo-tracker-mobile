@@ -294,3 +294,90 @@ export function listAllocations(
   }
   return db.getAllSync<AllocationDbRow>('SELECT * FROM sale_allocations;').map(toAllocationRow);
 }
+
+// ========== CACHE REPOSITORIES (fx_rates, quotes) ==========
+//
+// Both tables are pure caches (spec §5): reconstructible, excluded from
+// backups, and never a source of truth. They are the only tables in the
+// schema whose rows may be discarded without consequence.
+
+export interface FxRateRow {
+  /** 'YYYY-MM-DD' — the date the rate applies to, not when it was fetched. */
+  rateDate: string;
+  /** 4 dp decimal string. */
+  usdThb: string;
+  /** ISO 8601 UTC. */
+  fetchedAt: string;
+}
+
+interface FxRateDbRow {
+  rate_date: string;
+  usd_thb: string;
+  fetched_at: string;
+}
+
+function toFxRateRow(row: FxRateDbRow): FxRateRow {
+  return { rateDate: row.rate_date, usdThb: row.usd_thb, fetchedAt: row.fetched_at };
+}
+
+export function getFxRateRow(db: SqlDatabase, rateDate: string): FxRateRow | null {
+  const [row] = db.getAllSync<FxRateDbRow>('SELECT * FROM fx_rates WHERE rate_date = ?;', [rateDate]);
+  return row ? toFxRateRow(row) : null;
+}
+
+export function upsertFxRateRow(db: SqlDatabase, row: FxRateRow): void {
+  db.runSync(
+    `INSERT INTO fx_rates (rate_date, usd_thb, fetched_at) VALUES (?, ?, ?)
+     ON CONFLICT(rate_date) DO UPDATE SET usd_thb = excluded.usd_thb, fetched_at = excluded.fetched_at;`,
+    [row.rateDate, row.usdThb, row.fetchedAt],
+  );
+}
+
+/**
+ * The most recent date any rate was cached for. Used only as the dashboard's
+ * last-resort fallback when today's rate cannot be fetched — the caller is
+ * responsible for telling the user which date the figure came from.
+ * Ordered by rate_date, not fetched_at: what matters is which rate is
+ * closest to today, not which request happened to run last.
+ */
+export function latestFxRateRow(db: SqlDatabase): FxRateRow | null {
+  const [row] = db.getAllSync<FxRateDbRow>('SELECT * FROM fx_rates ORDER BY rate_date DESC LIMIT 1;');
+  return row ? toFxRateRow(row) : null;
+}
+
+export interface QuoteRow {
+  /** Uppercase, trimmed. */
+  ticker: string;
+  /** 6 dp decimal string. */
+  priceUsd: string;
+  /** ISO 8601 UTC. */
+  fetchedAt: string;
+}
+
+interface QuoteDbRow {
+  ticker: string;
+  price_usd: string;
+  fetched_at: string;
+}
+
+function toQuoteRow(row: QuoteDbRow): QuoteRow {
+  return { ticker: row.ticker, priceUsd: row.price_usd, fetchedAt: row.fetched_at };
+}
+
+/**
+ * Same normalization as symbols (spec §7.4): `nvda`, `NVDA`, and `NVDA `
+ * must never become three cache entries for one instrument.
+ * Reuses the normalizeTicker function defined for symbols above.
+ */
+export function getQuoteRow(db: SqlDatabase, ticker: string): QuoteRow | null {
+  const [row] = db.getAllSync<QuoteDbRow>('SELECT * FROM quotes WHERE ticker = ?;', [normalizeTicker(ticker)]);
+  return row ? toQuoteRow(row) : null;
+}
+
+export function upsertQuoteRow(db: SqlDatabase, row: QuoteRow): void {
+  db.runSync(
+    `INSERT INTO quotes (ticker, price_usd, fetched_at) VALUES (?, ?, ?)
+     ON CONFLICT(ticker) DO UPDATE SET price_usd = excluded.price_usd, fetched_at = excluded.fetched_at;`,
+    [normalizeTicker(row.ticker), row.priceUsd, row.fetchedAt],
+  );
+}
