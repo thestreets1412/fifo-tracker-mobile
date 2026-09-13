@@ -1,4 +1,4 @@
-import { ScrollView, View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet, type RefreshControlProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { color, space } from '../../theme/tokens';
 
@@ -8,7 +8,7 @@ export function Screen({
   children: React.ReactNode;
   scroll?: boolean;
   /** Pull-to-refresh; only meaningful together with `scroll`. */
-  refreshControl?: React.ReactElement<any>;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }) {
   const inner = <View style={styles.body}>{children}</View>;
   return (
