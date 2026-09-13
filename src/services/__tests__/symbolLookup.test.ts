@@ -83,4 +83,11 @@ describe('backfillMissingSymbolNames', () => {
   it('reports zero on an empty symbol table', async () => {
     await expect(backfillMissingSymbolNames(db, deps({}))).resolves.toBe(0);
   });
+
+  it('never throws when the database fails — the lookup is advisory', async () => {
+    const brokenDb = {
+      getAllSync: () => { throw new Error('db connection closed'); },
+    } as unknown as SqlDatabase;
+    await expect(backfillMissingSymbolNames(brokenDb, deps({}))).resolves.toBe(0);
+  });
 });

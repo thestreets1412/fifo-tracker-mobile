@@ -39,14 +39,18 @@ export async function backfillMissingSymbolNames(
   db: SqlDatabase,
   deps: NetDeps = defaultNetDeps,
 ): Promise<number> {
-  const unnamed = listSymbols(db).filter((symbol) => symbol.name.trim() === '');
+  try {
+    const unnamed = listSymbols(db).filter((symbol) => symbol.name.trim() === '');
 
-  // Sequential, not parallel: this runs against two unofficial endpoints
-  // that rate-limit, and a burst of simultaneous requests is the most
-  // reliable way to get every one of them refused.
-  let filled = 0;
-  for (const symbol of unnamed) {
-    if (await backfillSymbolName(db, symbol, deps)) filled += 1;
+    // Sequential, not parallel: this runs against two unofficial endpoints
+    // that rate-limit, and a burst of simultaneous requests is the most
+    // reliable way to get every one of them refused.
+    let filled = 0;
+    for (const symbol of unnamed) {
+      if (await backfillSymbolName(db, symbol, deps)) filled += 1;
+    }
+    return filled;
+  } catch {
+    return 0;
   }
-  return filled;
 }
