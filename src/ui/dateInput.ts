@@ -11,8 +11,14 @@ export function isValidYmd(value: string): boolean {
   );
 }
 
-export function todayYmd(): string {
-  const now = new Date();
+/**
+ * Today in the device's local timezone as 'YYYY-MM-DD'. Local, not UTC:
+ * a user in Bangkok filing a trade at 02:00 means today's Bangkok date,
+ * not yesterday's UTC one.
+ *
+ * `now` is injectable so services can be tested against a fixed clock.
+ */
+export function todayYmd(now: Date = new Date()): string {
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
