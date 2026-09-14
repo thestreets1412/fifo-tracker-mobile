@@ -1,6 +1,6 @@
 import type { SqlDatabase } from './sqlDatabase';
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 /**
  * One entry per schema version, keyed by the version it produces. Applied
@@ -22,6 +22,8 @@ export const CURRENT_SCHEMA_VERSION = 1;
  * before opening the transaction.
  */
 const MIGRATIONS: Record<number, string> = {
+  2: `CREATE TABLE evidence_storage (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), directory TEXT NOT NULL);
+      INSERT INTO evidence_storage (singleton, directory) VALUES (1, 'evidence');`,
   1: `
     CREATE TABLE symbols (
       id     INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Stack } from 'expo-router';
-import { ActivityIndicator, BackHandler, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useAppStore } from '../store/useAppStore';
 import { buildFifoReport } from '../services/report';
@@ -12,6 +12,8 @@ import { Screen } from '../ui/components/Screen';
 import { Button } from '../ui/components/Button';
 import { EmptyState } from '../ui/components/EmptyState';
 import { formatMoneyThb, formatSignedThb } from '../ui/format';
+import { purchaseMessage } from '../ui/purchaseState';
+import { purchaseController } from '../purchase/runtime';
 import { color, font, fontFamily, radius, space } from '../theme/tokens';
 
 export default function ReportScreen() {
@@ -23,7 +25,10 @@ export default function ReportScreen() {
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [paywall, setPaywall] = useState(false);
+  const [pendingPdfAction, setPendingPdfAction] = useState<'preview' | ReportDestination | null>(null);
   const [feedback, setFeedback] = useState<{ key: string; message: string; error?: boolean } | null>(null);
+  const purchase = useSyncExternalStore(purchaseController.subscribe, purchaseController.snapshot, purchaseController.snapshot);
   const exporter = useMemo(() => new ReportExporter(reportPlatform), []);
   const running = useRef(false);
   const mounted = useRef(true);
@@ -82,11 +87,44 @@ export default function ReportScreen() {
     }
   }
 
-  // All PDF actions meet here; plan 8 can add entitlement checks without gating CSV.
-  function pdfAction(action: 'preview' | ReportDestination) {
+  function runPdfAction(action: 'preview' | ReportDestination) {
     if (empty || running.current) return;
     if (action === 'preview') { setPreviewFailed(false); setPreviewKey(key); }
     else void exportReport('pdf', action);
+  }
+
+  async function pdfAction(action: 'preview' | ReportDestination) {
+    if (empty || running.current) return;
+    if (purchase.entitled || await purchaseController.load()) {
+      runPdfAction(action);
+      return;
+    }
+    setPendingPdfAction(action);
+    setPaywall(true);
+  }
+
+  async function buyPdf() {
+    const result = await purchaseController.purchase();
+    if (result === 'purchased') {
+      const action = pendingPdfAction;
+      setPaywall(false);
+      setPendingPdfAction(null);
+      if (action) runPdfAction(action);
+      return;
+    }
+    setFeedback({ key, message: purchaseMessage(result), error: result === 'failed' || result === 'unavailable' });
+  }
+
+  async function restorePdf() {
+    const result = await purchaseController.restore();
+    if (result === 'restored') {
+      const action = pendingPdfAction;
+      setPaywall(false);
+      setPendingPdfAction(null);
+      if (action) runPdfAction(action);
+      return;
+    }
+    setFeedback({ key, message: purchaseMessage(result), error: result === 'failed' });
   }
 
   if (preview) {
@@ -149,15 +187,32 @@ export default function ReportScreen() {
           <Text style={[styles.value, { color: report!.totalRealizedGainThb.lt(0) ? color.loss : color.gain }]}>{formatSignedThb(report!.totalRealizedGainThb)}</Text>
         </View>}
       <View style={styles.actions}>
-        <Button title="ดูตัวอย่าง PDF" disabled={empty || busy} onPress={() => pdfAction('preview')} />
-        <Button title="บันทึก PDF" variant="outline" disabled={empty || busy} onPress={() => pdfAction('save')} />
-        <Button title="แชร์ PDF" variant="outline" disabled={empty || busy} onPress={() => pdfAction('share')} />
+        <Button title="ดูตัวอย่าง PDF" disabled={empty || busy} onPress={() => void pdfAction('preview')} />
+        <Button title="บันทึก PDF" variant="outline" disabled={empty || busy} onPress={() => void pdfAction('save')} />
+        <Button title="แชร์ PDF" variant="outline" disabled={empty || busy} onPress={() => void pdfAction('share')} />
         <Text style={styles.hint}>CSV ส่งออกได้ฟรี ใช้สำหรับอ่านรายงาน ไม่ใช่ไฟล์สำรองข้อมูล</Text>
         <Button title="บันทึก CSV" variant="outline" disabled={empty || busy} onPress={() => { void exportReport('csv', 'save'); }} />
         <Button title="แชร์ CSV" variant="outline" disabled={empty || busy} onPress={() => { void exportReport('csv', 'share'); }} />
       </View>
       {busy && <View style={styles.busy}><ActivityIndicator color={color.actionPrimary} /><Text style={styles.body}>กำลังเตรียมรายงาน…</Text></View>}
       {feedback?.key === key && <Text accessibilityLiveRegion="polite" style={feedback.error ? styles.error : styles.hint}>{feedback.message}</Text>}
+      <Modal visible={paywall} transparent animationType="fade" onRequestClose={() => { if (!purchase.busy) setPaywall(false); }}>
+        <View style={styles.modalBackdrop}><View style={styles.paywall}>
+          <Text style={styles.paywallTitle}>รายงาน PDF</Text>
+          {purchase.mode === 'loading' ? <ActivityIndicator color={color.actionPrimary} /> : <>
+            <Text style={styles.body}>ปลดล็อกการดู บันทึก และแชร์รายงาน PDF ด้วยการซื้อครั้งเดียว</Text>
+            <Text style={styles.hint}>รายการซื้อ บันทึก CSV และสำรอง/กู้คืนข้อมูลยังใช้ฟรีเสมอ</Text>
+            {purchase.mode === 'unconfigured' ? <Text style={styles.error}>ระบบซื้อยังไม่ได้ตั้งค่าสำหรับ build นี้</Text>
+              : purchase.mode === 'error' ? <Text style={styles.error}>{purchase.error}</Text>
+                : !purchase.product ? <Text style={styles.error}>ยังไม่พบผลิตภัณฑ์ PDF กรุณาลองใหม่ภายหลัง</Text>
+                  : <><Text style={styles.price}>{purchase.product.price}</Text><Text style={styles.hint}>{purchase.product.title}{purchase.product.description ? ` · ${purchase.product.description}` : ''}</Text>
+                    <Button title={purchase.busy ? 'กำลังดำเนินการ…' : `ปลดล็อก PDF ${purchase.product.price}`} disabled={purchase.busy} onPress={() => void buyPdf()} />
+                  </>}
+            <Button title="กู้คืนการซื้อ" variant="outline" disabled={purchase.busy || purchase.mode !== 'ready'} onPress={() => void restorePdf()} />
+            <Button title="ปิด" variant="outline" disabled={purchase.busy} onPress={() => setPaywall(false)} />
+          </>}
+        </View></View>
+      </Modal>
     </Screen>
   );
 }
@@ -178,4 +233,8 @@ const styles = StyleSheet.create({
   error: { color: color.loss, fontFamily: fontFamily.sansRegular, fontSize: font.size.sm, marginVertical: space[3] },
   previewError: { gap: space[3], padding: space[3] },
   webview: { flex: 1, backgroundColor: '#ffffff' },
+  modalBackdrop: { flex: 1, justifyContent: 'center', padding: space[4], backgroundColor: 'rgba(0,0,0,0.72)' },
+  paywall: { gap: space[3], backgroundColor: color.cardBg, borderColor: color.cardBorder, borderWidth: 1, borderRadius: radius.lg, padding: space[4] },
+  paywallTitle: { color: color.textBody, fontFamily: fontFamily.sansBold, fontSize: font.size.xl },
+  price: { color: color.actionPrimary, fontFamily: fontFamily.monoSemibold, fontSize: font.size.xl },
 });

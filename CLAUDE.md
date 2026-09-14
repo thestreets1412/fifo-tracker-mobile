@@ -21,11 +21,12 @@ ever reach into the other.** A read-only snapshot of the parts worth porting is 
 
 ## Status
 
-Plans 1–4 are implemented and locally merged. Plan 5 (PDF/CSV reports) is implemented
-on `develop` as working-tree changes, not yet committed or merged. Plans 6–8 remain:
-encrypted backup/restore, PIN lock, and monetization. Read `docs/HANDOFF.md` for the
-verified state and remaining Android device checks. PDF is currently enabled for
-testing; plan 8 must add purchase checks before release. CSV stays free.
+Plans 1–4 are implemented and locally merged. Plan 5 (PDF/CSV reports) was committed
+and pushed on `develop` as `6d2128d`. Plans 6 (encrypted backup/restore), 7 (PIN lock),
+and 8 (PDF monetization) are implemented as uncommitted changes on `develop`. RevenueCat
+and Google Play must still be configured before a release build can unlock PDF. Read
+`docs/HANDOFF.md` for verified state and remaining Android device checks. CSV and backup
+stay free.
 
 ## Commands
 
@@ -88,6 +89,21 @@ the shared report types, CSV/HTML rendering, actual PDF footer stamping, and an
 injected export coordinator. `src/report/platform.ts` is the native I/O boundary.
 Only that boundary imports Expo; the renderers/coordinator run under Node.
 
+`src/backup/` handles canonical JSON/CSV, archive validation, AES-256 ZIP,
+password policy and an injected operation controller. `src/services/backup.ts`
+captures/restores ledger snapshots. Schema 2 stores an evidence-directory pointer
+so a restored ledger and its fully staged images become active in one transaction.
+`src/backup/platform.ts` is the native file/crypto/share boundary. The pinned zip.js
+dependency requires the checked-in Hermes patch applied by `postinstall`.
+
+`src/lock/` and `src/services/lock.ts` keep the PIN state machine React-free, with
+SecureStore, biometric, lifecycle, and screen-capture APIs isolated behind platform
+adapters.
+
+`src/services/purchase.ts` owns the injected PDF entitlement state. `src/purchase/platform.ts`
+is the only RevenueCat import; `/report` is the sole PDF gate. CSV and backup are never
+entitlement-gated.
+
 The user's workspace boundary applies to tool outputs too: keep generated files,
 temporary files, npm/Jest/Metro caches and Expo CLI state inside this repository.
 `.local-tools/` is ignored for this purpose. Never change the separate Django project.
@@ -98,10 +114,12 @@ The app's central promise is that the developer cannot see a user's portfolio, b
 mechanism exists by which it could be transmitted. Treat this as a hard constraint on every
 change, not marketing copy.
 
-The only outbound requests permitted are a ticker symbol to a quote endpoint and a date to
-the FX endpoint. Quantities, cost basis, gains, evidence images, and any identifier must
-never leave the device. No analytics, no crash reporting that includes user data, no
-advertising SDK. Export and share hand a file to the OS share sheet; the app never uploads.
+Portfolio-bearing outbound requests are limited to a ticker symbol to a quote endpoint and
+a date to the FX endpoint. Quantities, cost basis, gains, evidence images, and any
+portfolio identifier must never leave the device. The optional PDF-purchase flow uses Google
+Play and RevenueCat for billing and an anonymous app-install identifier; it must not receive
+portfolio data, subscriber attributes, analytics, or diagnostics. No advertising SDK.
+Export and share hand a file to the OS share sheet; the app never uploads.
 
 Any API key shipped in the APK is public, so keyed services cannot be used without a proxy,
 and a proxy would contradict standalone operation.

@@ -2,13 +2,13 @@ import { openTestDatabase } from './testDatabase';
 import { runMigrations, CURRENT_SCHEMA_VERSION } from '../schema';
 
 describe('runMigrations', () => {
-  it('creates all six tables', () => {
+  it('creates all seven tables', () => {
     const db = openTestDatabase();
     runMigrations(db);
     const tables = db
       .getAllSync<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;")
       .map((row) => row.name);
-    expect(tables).toEqual(['fx_rates', 'lots', 'quotes', 'sale_allocations', 'sales', 'symbols']);
+    expect(tables).toEqual(['evidence_storage', 'fx_rates', 'lots', 'quotes', 'sale_allocations', 'sales', 'symbols']);
   });
 
   it('sets PRAGMA user_version to the current schema version', () => {
@@ -23,7 +23,7 @@ describe('runMigrations', () => {
     runMigrations(db);
     expect(() => runMigrations(db)).not.toThrow();
     const tables = db.getAllSync("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
-    expect(tables).toHaveLength(6);
+    expect(tables).toHaveLength(7);
   });
 
   it('enforces the lots -> symbols foreign key', () => {

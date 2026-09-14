@@ -17,6 +17,7 @@ import {
 import { color, fontFamily, font, space } from '../theme/tokens';
 import { initializeDatabase } from '../services/appDatabase';
 import { useAppStore } from '../store/useAppStore';
+import { LockGate } from '../lock/LockGate';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -55,7 +56,7 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack
+      <LockGate><Stack
         screenOptions={{
           headerStyle: { backgroundColor: color.navbarBg },
           headerTintColor: color.textBody,
@@ -64,7 +65,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
+      </Stack></LockGate>
     </>
   );
 }

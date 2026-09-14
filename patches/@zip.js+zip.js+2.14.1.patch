@@ -1,0 +1,25 @@
+diff --git a/node_modules/@zip.js/zip.js/index-native.cjs b/node_modules/@zip.js/zip.js/index-native.cjs
+index a4b81e9..c3a0d74 100644
+--- a/node_modules/@zip.js/zip.js/index-native.cjs
++++ b/node_modules/@zip.js/zip.js/index-native.cjs
+@@ -1812,7 +1812,7 @@ function setCodecStreams(format, streams) {
+ 
+ async function ensureCodecStreams(format, codecURI) {
+ 	if (!codecStreams.has(format) && codecURI) {
+-		setCodecStreams(format, await import(/* webpackIgnore: true */ /* @vite-ignore */ codecURI));
++		throw new Error("External codec loading is disabled in FIFO Tracker (Hermes/offline)");
+ 	}
+ }
+ 
+diff --git a/node_modules/@zip.js/zip.js/lib/core/codec-registry.js b/node_modules/@zip.js/zip.js/lib/core/codec-registry.js
+index 4db859c..b7b0e14 100644
+--- a/node_modules/@zip.js/zip.js/lib/core/codec-registry.js
++++ b/node_modules/@zip.js/zip.js/lib/core/codec-registry.js
+@@ -118,6 +118,6 @@ function setCodecStreams(format, streams) {
+ 
+ async function ensureCodecStreams(format, codecURI) {
+ 	if (!codecStreams.has(format) && codecURI) {
+-		setCodecStreams(format, await import(/* webpackIgnore: true */ /* @vite-ignore */ codecURI));
++		throw new Error("External codec loading is disabled in FIFO Tracker (Hermes/offline)");
+ 	}
+ }

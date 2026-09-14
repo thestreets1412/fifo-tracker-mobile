@@ -1,9 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { generateEvidenceFilename } from '../ui/evidenceName';
+import { useAppStore } from '../store/useAppStore';
+import { evidenceDirectory } from '../db/backupRepo';
 
 export function evidenceDir(): string {
-  return `${FileSystem.documentDirectory}evidence/`;
+  const db = useAppStore.getState().db;
+  return `${FileSystem.documentDirectory}${db ? evidenceDirectory(db) : 'evidence'}/`;
 }
 
 export function resolveEvidenceUri(filename: string): string {
